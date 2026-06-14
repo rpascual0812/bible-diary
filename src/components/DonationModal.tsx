@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { 
-  X, Heart, Gift, CreditCard, Banknote, ShieldCheck, 
-  ExternalLink, Copy, Check, Info, AlertCircle, Loader2 
+import {
+  X,
+  Heart,
+  Gift,
+  CreditCard,
+  Banknote,
+  ShieldCheck,
+  ExternalLink,
+  Copy,
+  Check,
+  Info,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { LangType } from "../App";
@@ -12,8 +22,9 @@ import {
   BAKED_GCASH_NUMBER,
   BAKED_GCASH_NAME,
   getApiUrl,
-  isSandboxMode
+  isSandboxMode,
 } from "../config/apiKey";
+import { getDefaultDonationPurpose } from "../data/givingTypes";
 
 interface DonationModalProps {
   isOpen: boolean;
@@ -22,63 +33,23 @@ interface DonationModalProps {
   theme: "dark" | "light";
 }
 
-// Map Philippine popular giving methods for presentation
-const GIVING_TYPES = {
-  en: [
-    { id: "tithe", label: "Tithe (Ikasampung Bahagi)", description: "10% of personal increase dedicated to the Lord." },
-    { id: "offering", label: "General Offering", description: "Voluntary church giving for operations and ministries." },
-    { id: "love_gift", label: "Love Gift", description: "Pastoral support, speaker honorariums, and special needs." },
-    { id: "missions", label: "Missions & Mercy Ministry", description: "Sponsorship of local outreach and regional evangelism." },
-    { id: "building", label: "Church Building Fund", description: "Expansion of physical sanctuary and equipment." }
-  ],
-  fil: [
-    { id: "tithe", label: "Ikapu / Ikasampung Bahagi", description: "Bahagi para sa Panginoon mula sa ating mga biyaya." },
-    { id: "offering", label: "Karaniwang Handog", description: "Kusang-loob na alay para sa pagpapalago ng simbahan." },
-    { id: "love_gift", label: "Kaloob ng Pagmamahal (Love Gift)", description: "Suporta para sa mga Pastor, panauhing tagapagsalita o kapatid sa pananampalataya." },
-    { id: "missions", label: "Suporta sa Misyon at Kahabagan", description: "Tulong sa mga gawaing panlabas at pagkakawanggawa." },
-    { id: "building", label: "Proyekto sa Pagpapatayo ng Simbahan", description: "Para sa pagbili, pagpapaayos, o pagpapalawak ng gusali." }
-  ],
-  ceb: [
-    { id: "tithe", label: "Ikapulo / Tibuok Ikapulo", description: "Ikapulo nga bahin sa grasya nga gihalad ngadto sa Ginoo." },
-    { id: "offering", label: "Kinatibuk-ang Halad", description: "Boluntaryo nga halad alang sa mga kalihokan sa simbahan." },
-    { id: "love_gift", label: "Halad sa Gugma (Love Gift)", description: "Suporta alang sa mga Pastor, mamumulong ug pinasahi nga panginahanglan." },
-    { id: "missions", label: "Misyon ug Gasa sa Kaluoy", description: "Sponsorship sa lokal nga outreaches ug rehiyonal nga pag-ebanghelyo." },
-    { id: "building", label: "Pundo sa Pagpatayo sa Simbahan", description: "Alang sa pagpalapad sa puy-anan ug kagamitan." }
-  ],
-  bik: [
-    { id: "tithe", label: "Ikasampulong Bahagi (Tithe)", description: "An ikasampulong porsiyento kan satuyang biyaya para sa Kagurangnan." },
-    { id: "offering", label: "Banal na Alay / Handog", description: "Kusang-gibo na suporta sa operasyon kan simbahan." },
-    { id: "love_gift", label: "Kaloob nin Pagkamoot (Love Gift)", description: "Suporta sa satuyang Pastor o mga nanganangaipo." },
-    { id: "missions", label: "Gibo sa Misyon o Kahabagan", description: "Sponsorship sa mga lokal na outreaches asin pag-ebanghelyo." },
-    { id: "building", label: "Pundo sa Pagpapatugdok kan Simbahan", description: "Para sa paggibo o pagpakarhay kan satuyang templo." }
-  ],
-  ilo: [
-    { id: "tithe", label: "Ikapulo wenno Tithe", description: "Maysa a pagkapulo a paset ti biag nga idonasion iti Apo." },
-    { id: "offering", label: "Kadawyan a Daton", description: "Naimpusoan a daton para iti iglesiatyo." },
-    { id: "love_gift", label: "Sagut ti Ayat (Love Gift)", description: "Suporta para kadagiti Pastor wenno addaan nangruna a masapul." },
-    { id: "missions", label: "Suporta iti Misyon ken Kaasi", description: "Tulong para kadagiti out-of-town missions ken tulong panagbasa." },
-    { id: "building", label: "Pangbangon a Pundo ti Iglesia", description: "Para iti pannakapapintas wenno pangpalawa ti simbaan." }
-  ],
-  hil: [
-    { id: "tithe", label: "Ikapulo (Tithe)", description: "Bahin nga ginalat-an para sa Ginoo gikan sa aton pagsanyog." },
-    { id: "offering", label: "Kinabatasan nga Halad", description: "Kusa nga hatag para sa operasyon sang aton simbahan." },
-    { id: "love_gift", label: "Gasa sang Gugma (Love Gift)", description: "Suporta para sa aton mga Pastor kag pinasahi nga kinahanglanon." },
-    { id: "missions", label: "Suporta sa Misyon kag Kaluoy", description: "Bulig para sa lokal nga pagpalapnag sang Pulong sang Dios." },
-    { id: "building", label: "Pundo sa Pagpatindog sang Simbahan", description: "Para sa pagmentinar kag pagpalapad sang sagrado nga templo." }
-  ]
-};
-
 const BANK_DETAILS = {
   bankName: import.meta.env.VITE_BANK_NAME || BAKED_BANK_NAME || "",
-  accountName: import.meta.env.VITE_BANK_ACCOUNT_NAME || BAKED_BANK_ACCOUNT_NAME || "",
-  accountNumber: import.meta.env.VITE_BANK_ACCOUNT_NUMBER || BAKED_BANK_ACCOUNT_NUMBER || "",
+  accountName:
+    import.meta.env.VITE_BANK_ACCOUNT_NAME || BAKED_BANK_ACCOUNT_NAME || "",
+  accountNumber:
+    import.meta.env.VITE_BANK_ACCOUNT_NUMBER || BAKED_BANK_ACCOUNT_NUMBER || "",
   gcashNumber: import.meta.env.VITE_GCASH_NUMBER || BAKED_GCASH_NUMBER || "",
-  gcashName: import.meta.env.VITE_GCASH_NAME || BAKED_GCASH_NAME || ""
+  gcashName: import.meta.env.VITE_GCASH_NAME || BAKED_GCASH_NAME || "",
 };
 
-export function DonationModal({ isOpen, onClose, language, theme }: DonationModalProps) {
+export function DonationModal({
+  isOpen,
+  onClose,
+  language,
+  theme,
+}: DonationModalProps) {
   const [amount, setAmount] = useState<string>("500");
-  const [purpose, setPurpose] = useState<string>("love_gift");
   const [contributorName, setContributorName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [mobile, setMobile] = useState<string>("");
@@ -96,7 +67,6 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
   // Handle Close & Reset variables
   const handleClose = () => {
     setAmount("500");
-    setPurpose("love_gift");
     setContributorName("");
     setEmail("");
     setMobile("");
@@ -105,8 +75,7 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
     onClose();
   };
 
-  const selectedGivingType = (GIVING_TYPES[language] || GIVING_TYPES.en).find((t) => t.id === purpose);
-  const purposeName = selectedGivingType ? selectedGivingType.label : purpose;
+  const purposeName = getDefaultDonationPurpose(language);
 
   // Handles dynamic checkout submission or sandbox demo checkout triggering
   const handleSubmit = async (e: React.FormEvent) => {
@@ -116,7 +85,11 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
 
     const numericAmount = parseFloat(amount);
     if (isNaN(numericAmount) || numericAmount < 20) {
-      setErrorMsg(language === "fil" ? "Ang pinakamababang handog ay PHP 20.00." : "Minimum offering amount is PHP 20.00.");
+      setErrorMsg(
+        language === "fil"
+          ? "Ang pinakamababang handog ay PHP 20.00."
+          : "Minimum offering amount is PHP 20.00.",
+      );
       return;
     }
 
@@ -142,14 +115,24 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
       try {
         resData = JSON.parse(text);
       } catch (parseErr) {
-        if (text.trim().startsWith("<!DOCTYPE") || text.trim().startsWith("<html") || text.trim().startsWith("<htm")) {
-          throw new Error("A cached service worker or browser routing conflict intercepted the payment request. Please click 'Clear App Cache & Fix Gateway' below to repair the connection.");
+        if (
+          text.trim().startsWith("<!DOCTYPE") ||
+          text.trim().startsWith("<html") ||
+          text.trim().startsWith("<htm")
+        ) {
+          throw new Error(
+            "A cached service worker or browser routing conflict intercepted the payment request. Please click 'Clear App Cache & Fix Gateway' below to repair the connection.",
+          );
         }
-        throw new Error(`Invalid response format from gateway server: ${text.substring(0, 100)}`);
+        throw new Error(
+          `Invalid response format from gateway server: ${text.substring(0, 100)}`,
+        );
       }
 
       if (!res.ok) {
-        throw new Error(resData.message || "Failed to initiate payment session.");
+        throw new Error(
+          resData.message || "Failed to initiate payment session.",
+        );
       }
 
       if (resData.checkoutUrl) {
@@ -159,7 +142,10 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
       }
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || "Something went wrong while connecting with PayMongo gateway.");
+      setErrorMsg(
+        err.message ||
+          "Something went wrong while connecting with PayMongo gateway.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -187,12 +173,12 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
       hil: "Dapit sang Halad",
     },
     subtitle: {
-      en: "Your generous contribution will help pay for the AI expenses of bible-diary. A part of your donation will be given to church missions, general ministries, and community services.",
-      fil: "Ang inyong masayang pagbibigay ay makatutulong sa gastusin sa AI ng bible-diary. Ang bahagi ng inyong handog ay ibabahagi rin sa mga misyon ng simbahan, pangkalahatang ministeryo, at serbisyo sa komunidad.",
-      ceb: "Ang inyong manggihatagon nga paghatag makatabang sa pagbayad sa mga AI nga gasto sa bible-diary. Ang bahin sa inyong donasyon ihalad usab sa mga misyon sa simbahan, kinatibuk-ang ministeryo, ug serbisyo sa komunidad.",
-      bik: "An saimong maugmang pag-alay makakatabang sa mga gastos sa AI kan bible-diary. An parte kan saimong donasyon itatao sa mga misyon kan simbahan, pangkalahatang ministeryo, asin serbisyo sa komunidad.",
-      ilo: "Ti naimpusoan a datonyo ket makatulong a mangbayad iti gastusen ti AI ti bible-diary. Ti dadduma a paset ti donasionyo ket maidaton met iti mision ti simbaan, sabsabali a ministeryo, ken tulong panagbasa.",
-      hil: "Ang inyo maalwan nga paghatag makabulig sa mga gastos sa AI sang bible-diary. Ang parte sang inyo donasyon ihatag man sa misyon sang aton simbahan kag mga serbisyo sa komunidad.",
+      en: "Your generous contribution will help pay for the AI expenses of Bible Diary. A part of your donation will be given to church missions, general ministries, and community services.",
+      fil: "Ang inyong masayang pagbibigay ay makatutulong sa gastusin sa AI ng Bible Diary. Ang bahagi ng inyong handog ay ibabahagi rin sa mga misyon ng simbahan, pangkalahatang ministeryo, at serbisyo sa komunidad.",
+      ceb: "Ang inyong manggihatagon nga paghatag makatabang sa pagbayad sa mga AI nga gasto sa Bible Diary. Ang bahin sa inyong donasyon ihalad usab sa mga misyon sa simbahan, kinatibuk-ang ministeryo, ug serbisyo sa komunidad.",
+      bik: "An saimong maugmang pag-alay makakatabang sa mga gastos sa AI kan Bible Diary. An parte kan saimong donasyon itatao sa mga misyon kan simbahan, pangkalahatang ministeryo, asin serbisyo sa komunidad.",
+      ilo: "Ti naimpusoan a datonyo ket makatulong a mangbayad iti gastusen ti AI ti Bible Diary. Ti dadduma a paset ti donasionyo ket maidaton met iti mision ti simbaan, sabsabali a ministeryo, ken tulong panagbasa.",
+      hil: "Ang inyo maalwan nga paghatag makabulig sa mga gastos sa AI sang Bible Diary. Ang parte sang inyo donasyon ihatag man sa misyon sang aton simbahan kag mga serbisyo sa komunidad.",
     },
     detailsHeader: {
       en: "Offering Details",
@@ -313,19 +299,19 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
       bik: "Mabalos sa saimong pagserbi asin pagsuporta sa Kaharian kan Dios! Padaba kan Dios an maugmang para-alay.",
       ilo: "Agyamantay unay iti panagdaton dita Pagarian ti Dios! Ay-ayaten ti Dios ti naragsak nga agdatdaton.",
       hil: "Madamo nga salamat sa imo pagsuporta sa Ginharian sang Dios! Ginahigugma sang Dios ang masadya nga nagahatag.",
-    }
+    },
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-300 overflow-y-auto select-text">
-      <div 
+      <div
         className={cn(
           "relative w-full max-w-2xl rounded-3xl border shadow-2xl flex flex-col max-h-[90vh] overflow-hidden transition-all duration-300",
-          isDark 
-            ? "bg-[#0E1015]/95 border-white/10 shadow-black/60 text-slate-100" 
-            : "bg-white border-slate-200/80 shadow-slate-300/40 text-slate-800"
+          isDark
+            ? "bg-[#0E1015]/95 border-white/10 shadow-black/60 text-slate-100"
+            : "bg-white border-slate-200/80 shadow-slate-300/40 text-slate-800",
         )}
       >
         {/* Header section */}
@@ -350,14 +336,14 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
               </p>
             </div>
           </div>
-          
+
           <button
             onClick={handleClose}
             className={cn(
               "p-2 rounded-full border transition-all cursor-pointer",
-              isDark 
-                ? "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10" 
-                : "bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+              isDark
+                ? "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10"
+                : "bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100",
             )}
           >
             <X className="w-4 h-4" />
@@ -367,34 +353,49 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
         {/* Modal Tabs: Online vs Manual */}
         <div className="grid grid-cols-2 text-center border-b border-white/5 pt-1">
           <button
-            onClick={() => { setActiveTab("paymongo"); setCheckoutUrl(null); }}
+            onClick={() => {
+              setActiveTab("paymongo");
+              setCheckoutUrl(null);
+            }}
             className={cn(
               "py-3 font-sans text-xs font-semibold tracking-wider transition-all border-b-2 cursor-pointer flex items-center justify-center gap-1.5",
               activeTab === "paymongo"
-                ? (isDark ? "border-gold-500 text-gold-400 font-bold bg-white/[0.02]" : "border-gold-600 text-gold-700 font-bold bg-slate-50")
-                : (isDark ? "border-transparent text-slate-400 hover:text-slate-200" : "border-transparent text-slate-500 hover:text-slate-800")
+                ? isDark
+                  ? "border-gold-500 text-gold-400 font-bold bg-white/[0.02]"
+                  : "border-gold-600 text-gold-700 font-bold bg-slate-50"
+                : isDark
+                  ? "border-transparent text-slate-400 hover:text-slate-200"
+                  : "border-transparent text-slate-500 hover:text-slate-800",
             )}
           >
             <CreditCard className="w-3.5 h-3.5" />
             <span>{uiTexts.tabsOnline[language] || uiTexts.tabsOnline.en}</span>
           </button>
           <button
-            onClick={() => { setActiveTab("manual"); setCheckoutUrl(null); }}
+            onClick={() => {
+              setActiveTab("manual");
+              setCheckoutUrl(null);
+            }}
             className={cn(
               "py-3 font-sans text-xs font-semibold tracking-wider transition-all border-b-2 cursor-pointer flex items-center justify-center gap-1.5",
               activeTab === "manual"
-                ? (isDark ? "border-gold-500 text-gold-400 font-bold bg-white/[0.02]" : "border-gold-600 text-gold-700 font-bold bg-slate-50")
-                : (isDark ? "border-transparent text-slate-400 hover:text-slate-200" : "border-transparent text-slate-500 hover:text-slate-800")
+                ? isDark
+                  ? "border-gold-500 text-gold-400 font-bold bg-white/[0.02]"
+                  : "border-gold-600 text-gold-700 font-bold bg-slate-50"
+                : isDark
+                  ? "border-transparent text-slate-400 hover:text-slate-200"
+                  : "border-transparent text-slate-500 hover:text-slate-800",
             )}
           >
             <Banknote className="w-3.5 h-3.5" />
-            <span>{uiTexts.tabsOffline[language] || uiTexts.tabsOffline.en}</span>
+            <span>
+              {uiTexts.tabsOffline[language] || uiTexts.tabsOffline.en}
+            </span>
           </button>
         </div>
 
         {/* Dynamic scrollable content area */}
         <div className="flex-1 overflow-y-auto p-5 md:p-6 space-y-5 custom-scrollbar">
-          
           <p className="text-xs font-light text-slate-400 leading-relaxed text-justify">
             {uiTexts.subtitle[language] || uiTexts.subtitle.en}
           </p>
@@ -406,18 +407,29 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
                 <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
                   <ShieldCheck className="w-8 h-8 animate-bounce" />
                 </div>
-                
+
                 <div className="space-y-1.5 max-w-sm">
-                  <h3 className="text-base font-bold">Secure Gateway Portal Created</h3>
+                  <h3 className="text-base font-bold">
+                    Secure Gateway Portal Created
+                  </h3>
                   <p className="text-xs font-light text-slate-400">
                     {uiTexts.redirectDesc[language] || uiTexts.redirectDesc.en}
                   </p>
                 </div>
 
                 <div className="bg-white/5 border border-white/5 p-4 rounded-2xl text-xs space-y-1 font-mono text-left max-w-md w-full">
-                  <p className="text-slate-500">CATEGORY: <span className="text-gold-400 font-bold">{purposeName}</span></p>
-                  <p className="text-slate-500">AMOUNT: <span className="text-white font-black">₱ {amount} PHP</span></p>
-                  {contributorName && <p className="text-slate-500">CONTRIBUTOR: <span className="text-slate-300">{contributorName}</span></p>}
+                  <p className="text-slate-500">
+                    AMOUNT:{" "}
+                    <span className="text-white font-black">
+                      ₱ {amount} PHP
+                    </span>
+                  </p>
+                  {contributorName && (
+                    <p className="text-slate-500">
+                      CONTRIBUTOR:{" "}
+                      <span className="text-slate-300">{contributorName}</span>
+                    </p>
+                  )}
                 </div>
 
                 <a
@@ -425,10 +437,13 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(
-                    "inline-flex items-center gap-2 px-6 py-3.5 rounded-full text-xs font-semibold uppercase tracking-wider border cursor-pointer active:scale-95 transition-all text-white bg-gradient-to-r from-amber-500 to-amber-600 shadow-lg shadow-amber-500/10 hover:shadow-amber-500/20"
+                    "inline-flex items-center gap-2 px-6 py-3.5 rounded-full text-xs font-semibold uppercase tracking-wider border cursor-pointer active:scale-95 transition-all text-white bg-gradient-to-r from-amber-500 to-amber-600 shadow-lg shadow-amber-500/10 hover:shadow-amber-500/20",
                   )}
                 >
-                  <span>{uiTexts.proceedRedirect[language] || uiTexts.proceedRedirect.en}</span>
+                  <span>
+                    {uiTexts.proceedRedirect[language] ||
+                      uiTexts.proceedRedirect.en}
+                  </span>
                   <ExternalLink className="w-4 h-4" />
                 </a>
               </div>
@@ -436,7 +451,11 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
               // FORM ENTRY STEP
               <form onSubmit={handleSubmit} className="space-y-5">
                 <h3 className="text-xs uppercase tracking-wider text-slate-450 dark:text-slate-550 border-b border-white/5 pb-1 flex items-center gap-1.5 font-bold font-sans">
-                  <span>1. {uiTexts.detailsHeader[language] || uiTexts.detailsHeader.en}</span>
+                  <span>
+                    1.{" "}
+                    {uiTexts.detailsHeader[language] ||
+                      uiTexts.detailsHeader.en}
+                  </span>
                 </h3>
 
                 {/* Amount presets list */}
@@ -444,33 +463,37 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
                   <span className="text-xs font-medium text-slate-400">
                     {uiTexts.amountLabel[language] || uiTexts.amountLabel.en}
                   </span>
-                  
+
                   {/* Presets Grid */}
                   <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                    {["100", "250", "500", "1000", "2500", "5000"].map((preset) => (
-                      <button
-                        key={preset}
-                        type="button"
-                        onClick={() => setAmount(preset)}
-                        className={cn(
-                          "py-2 px-1 rounded-xl text-sm font-semibold transition-all border cursor-pointer active:scale-95 text-center font-mono",
-                          amount === preset
-                            ? (isDark 
-                                ? "bg-gold-500/15 border-gold-500 text-gold-400 font-bold" 
-                                : "bg-gold-50 border-gold-500 text-gold-700 font-bold")
-                            : (isDark 
-                                ? "bg-white/5 border-white/5 text-slate-400 hover:text-white hover:bg-white/10" 
-                                : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100")
-                        )}
-                      >
-                        ₱ {parseInt(preset).toLocaleString()}
-                      </button>
-                    ))}
+                    {["100", "250", "500", "1000", "2500", "5000"].map(
+                      (preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setAmount(preset)}
+                          className={cn(
+                            "py-2 px-1 rounded-xl text-sm font-semibold transition-all border cursor-pointer active:scale-95 text-center font-mono",
+                            amount === preset
+                              ? isDark
+                                ? "bg-gold-500/15 border-gold-500 text-gold-400 font-bold"
+                                : "bg-gold-50 border-gold-500 text-gold-700 font-bold"
+                              : isDark
+                                ? "bg-white/5 border-white/5 text-slate-400 hover:text-white hover:bg-white/10"
+                                : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100",
+                          )}
+                        >
+                          ₱ {parseInt(preset).toLocaleString()}
+                        </button>
+                      ),
+                    )}
                   </div>
 
                   {/* Manual input tag */}
                   <div className="relative mt-2 flex items-center">
-                    <span className="absolute left-4 font-mono text-sm text-slate-500 font-bold select-none">₱</span>
+                    <span className="absolute left-4 font-mono text-sm text-slate-500 font-bold select-none">
+                      ₱
+                    </span>
                     <input
                       type="number"
                       required
@@ -481,58 +504,67 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
                       placeholder="Enter custom amount..."
                       className={cn(
                         "w-full bg-transparent border rounded-2xl pl-8 pr-12 py-3 font-mono text-sm font-semibold focus:outline-none focus:ring-1 transition-all",
-                        isDark 
-                          ? "border-white/10 focus:border-gold-500/50 focus:ring-gold-500/20 text-white" 
-                          : "border-slate-200 focus:border-gold-500/50 focus:ring-gold-500/20 text-slate-800"
+                        isDark
+                          ? "border-white/10 focus:border-gold-500/50 focus:ring-gold-500/20 text-white"
+                          : "border-slate-200 focus:border-gold-500/50 focus:ring-gold-500/20 text-slate-800",
                       )}
                     />
-                    <span className="absolute right-4 font-mono text-xs text-slate-500 font-semibold select-none">PHP</span>
+                    <span className="absolute right-4 font-mono text-xs text-slate-500 font-semibold select-none">
+                      PHP
+                    </span>
                   </div>
                 </div>
-
-                {/* Purpose Category Selection Radio - Hidden for now, default is Love Gift */}
 
                 {/* Contributor personal details */}
                 <div className="space-y-3">
                   <h3 className="text-xs uppercase tracking-wider text-slate-450 dark:text-slate-550 border-b border-white/5 pb-1 flex items-center gap-1.5 font-bold font-sans">
                     <span>2. Contributor details (Fields optional)</span>
                   </h3>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <input
                       type="text"
                       value={contributorName}
                       onChange={(e) => setContributorName(e.target.value)}
-                      placeholder={uiTexts.namePlaceholder[language] || uiTexts.namePlaceholder.en}
+                      placeholder={
+                        uiTexts.namePlaceholder[language] ||
+                        uiTexts.namePlaceholder.en
+                      }
                       className={cn(
                         "w-full bg-transparent border rounded-2xl px-4 py-3 text-xs focus:outline-none focus:ring-1 transition-all md:col-span-2",
-                        isDark 
-                          ? "border-white/10 focus:border-gold-500/50 focus:ring-gold-500/20 text-white" 
-                          : "border-slate-200 focus:border-gold-500/50 focus:ring-gold-500/20 text-slate-800"
+                        isDark
+                          ? "border-white/10 focus:border-gold-500/50 focus:ring-gold-500/20 text-white"
+                          : "border-slate-200 focus:border-gold-500/50 focus:ring-gold-500/20 text-slate-800",
                       )}
                     />
                     <input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder={uiTexts.emailPlaceholder[language] || uiTexts.emailPlaceholder.en}
+                      placeholder={
+                        uiTexts.emailPlaceholder[language] ||
+                        uiTexts.emailPlaceholder.en
+                      }
                       className={cn(
                         "w-full bg-transparent border rounded-2xl px-4 py-3 text-xs focus:outline-none focus:ring-1 transition-all",
-                        isDark 
-                          ? "border-white/10 focus:border-gold-500/50 focus:ring-gold-500/20 text-white" 
-                          : "border-slate-200 focus:border-gold-500/50 focus:ring-gold-500/20 text-slate-800"
+                        isDark
+                          ? "border-white/10 focus:border-gold-500/50 focus:ring-gold-500/20 text-white"
+                          : "border-slate-200 focus:border-gold-500/50 focus:ring-gold-500/20 text-slate-800",
                       )}
                     />
                     <input
                       type="tel"
                       value={mobile}
                       onChange={(e) => setMobile(e.target.value)}
-                      placeholder={uiTexts.phonePlaceholder[language] || uiTexts.phonePlaceholder.en}
+                      placeholder={
+                        uiTexts.phonePlaceholder[language] ||
+                        uiTexts.phonePlaceholder.en
+                      }
                       className={cn(
                         "w-full bg-transparent border rounded-2xl px-4 py-3 text-xs focus:outline-none focus:ring-1 transition-all",
-                        isDark 
-                          ? "border-white/10 focus:border-gold-500/50 focus:ring-gold-500/20 text-white" 
-                          : "border-slate-200 focus:border-gold-500/50 focus:ring-gold-500/20 text-slate-800"
+                        isDark
+                          ? "border-white/10 focus:border-gold-500/50 focus:ring-gold-500/20 text-white"
+                          : "border-slate-200 focus:border-gold-500/50 focus:ring-gold-500/20 text-slate-800",
                       )}
                     />
                   </div>
@@ -544,14 +576,21 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
                       <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
                       <span>{errorMsg}</span>
                     </div>
-                    {(errorMsg.includes("intercepted") || errorMsg.includes("format") || errorMsg.includes("Unexpected") || errorMsg.includes("JSON")) && (
+                    {(errorMsg.includes("intercepted") ||
+                      errorMsg.includes("format") ||
+                      errorMsg.includes("Unexpected") ||
+                      errorMsg.includes("JSON")) && (
                       <button
                         type="button"
                         onClick={async () => {
                           const win = window as any;
-                          if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+                          if (
+                            typeof navigator !== "undefined" &&
+                            "serviceWorker" in navigator
+                          ) {
                             try {
-                              const regs = await navigator.serviceWorker.getRegistrations();
+                              const regs =
+                                await navigator.serviceWorker.getRegistrations();
                               for (const reg of regs) {
                                 await reg.unregister();
                               }
@@ -562,17 +601,29 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
                           if ("caches" in win) {
                             try {
                               const keys = await win.caches.keys();
-                              await Promise.all(keys.map((key: string) => win.caches.delete(key)));
+                              await Promise.all(
+                                keys.map((key: string) =>
+                                  win.caches.delete(key),
+                                ),
+                              );
                             } catch (cacheErr) {
                               console.error(cacheErr);
                             }
                           }
                           try {
                             // Selectively clear cache keys but preserve user's Bible study chats, theme, and language
-                            const preservedKeys = ["biblesphere_sessions", "biblesphere_lang", "biblesphere_theme", "biblesphere_active_id"];
-                            const keysToKeep = preservedKeys.map(k => ({ key: k, val: localStorage.getItem(k) }));
+                            const preservedKeys = [
+                              "biblesphere_sessions",
+                              "biblesphere_lang",
+                              "biblesphere_theme",
+                              "biblesphere_active_id",
+                            ];
+                            const keysToKeep = preservedKeys.map((k) => ({
+                              key: k,
+                              val: localStorage.getItem(k),
+                            }));
                             localStorage.clear();
-                            keysToKeep.forEach(item => {
+                            keysToKeep.forEach((item) => {
                               if (item.val !== null) {
                                 localStorage.setItem(item.key, item.val);
                               }
@@ -594,29 +645,49 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
                 {/* Security Badge and submit buttons */}
                 <div className="flex flex-col gap-4 pt-2">
                   {isSandboxMode() && (
-                    <div className={cn(
-                      "p-3 rounded-2xl text-[10px] space-y-1 leading-relaxed border flex flex-col",
-                      isDark 
-                        ? "bg-amber-500/5 border-amber-500/10 text-amber-300"
-                        : "bg-amber-50 border-amber-200 text-amber-800"
-                    )}>
+                    <div
+                      className={cn(
+                        "p-3 rounded-2xl text-[10px] space-y-1 leading-relaxed border flex flex-col",
+                        isDark
+                          ? "bg-amber-500/5 border-amber-500/10 text-amber-300"
+                          : "bg-amber-50 border-amber-200 text-amber-800",
+                      )}
+                    >
                       <p className="font-bold flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>
                         <span>APK Debug / Sandbox Mode Active</span>
                       </p>
-                      <p>You can test payments safely. Use PayMongo sandbox test card numbers:</p>
+                      <p>
+                        You can test payments safely. Use PayMongo sandbox test
+                        card numbers:
+                      </p>
                       <ul className="list-disc pl-4 space-y-0.5 font-mono text-[9px]">
-                        <li>Mock Visa Card: <span className="font-bold select-all">4111 1111 1111 4111</span> (Any exp. / any CVV)</li>
-                        <li>Mock GCash Phone: <span className="font-bold select-all">09000000000</span> (Any OTP code like 123456)</li>
+                        <li>
+                          Mock Visa Card:{" "}
+                          <span className="font-bold select-all">
+                            4111 1111 1111 4111
+                          </span>{" "}
+                          (Any exp. / any CVV)
+                        </li>
+                        <li>
+                          Mock GCash Phone:{" "}
+                          <span className="font-bold select-all">
+                            09000000000
+                          </span>{" "}
+                          (Any OTP code like 123456)
+                        </li>
                       </ul>
                     </div>
                   )}
 
                   <div className="text-[10px] text-slate-450 dark:text-slate-450 leading-relaxed bg-white/5 rounded-2xl p-3 flex gap-2 items-start">
                     <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                    <span>{uiTexts.securityNotice[language] || uiTexts.securityNotice.en}</span>
+                    <span>
+                      {uiTexts.securityNotice[language] ||
+                        uiTexts.securityNotice.en}
+                    </span>
                   </div>
-                  
+
                   <button
                     type="submit"
                     disabled={submitting}
@@ -624,7 +695,7 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
                       "w-full py-4 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl cursor-pointer active:scale-95 focus:outline-none border select-none duration-150",
                       isDark
                         ? "bg-gradient-to-r from-amber-500 to-amber-600 border-amber-600 text-white hover:brightness-105"
-                        : "bg-gradient-to-r from-amber-500 to-amber-600 border-amber-600 text-white hover:brightness-105"
+                        : "bg-gradient-to-r from-amber-500 to-amber-600 border-amber-600 text-white hover:brightness-105",
                     )}
                   >
                     {submitting ? (
@@ -635,7 +706,10 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
                     ) : (
                       <>
                         <Heart className="w-4 h-4 text-rose-500 fill-rose-500 animate-pulse" />
-                        <span>{uiTexts.submitButton[language] || uiTexts.submitButton.en}</span>
+                        <span>
+                          {uiTexts.submitButton[language] ||
+                            uiTexts.submitButton.en}
+                        </span>
                       </>
                     )}
                   </button>
@@ -651,18 +725,55 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
 
               {/* Box container with accounts list */}
               <div className="space-y-4">
-                
                 {/* Bank Account item */}
-                <div className={cn(
-                  "p-4 border rounded-2xl flex flex-col md:flex-row justify-between md:items-center gap-4 transition-all",
-                  isDark ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-200"
-                )}>
+                <div
+                  className={cn(
+                    "p-4 border rounded-2xl flex flex-col md:flex-row justify-between md:items-center gap-4 transition-all",
+                    isDark
+                      ? "bg-white/[0.02] border-white/5"
+                      : "bg-slate-50 border-slate-200",
+                  )}
+                >
                   <div className="space-y-1.5 flex-1 select-text">
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider font-mono uppercase">MOBILE BANK TRANSFER</p>
-                    <h4 className={cn("text-xs font-bold capitalize", isDark ? "text-white" : "text-slate-900")}>{BANK_DETAILS.bankName}</h4>
-                    <div className={cn("text-xs space-y-0.5", isDark ? "text-slate-300" : "text-slate-700")}>
-                      <p>Account Name: <span className={cn("font-semibold", isDark ? "text-slate-100" : "text-slate-800")}>{BANK_DETAILS.accountName}</span></p>
-                      <p className="font-mono">Account Number: <span className={cn("font-bold text-xs", isDark ? "text-gold-500" : "text-amber-700")}>{BANK_DETAILS.accountNumber}</span></p>
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider font-mono uppercase">
+                      MOBILE BANK TRANSFER
+                    </p>
+                    <h4
+                      className={cn(
+                        "text-xs font-bold capitalize",
+                        isDark ? "text-white" : "text-slate-900",
+                      )}
+                    >
+                      {BANK_DETAILS.bankName}
+                    </h4>
+                    <div
+                      className={cn(
+                        "text-xs space-y-0.5",
+                        isDark ? "text-slate-300" : "text-slate-700",
+                      )}
+                    >
+                      <p>
+                        Account Name:{" "}
+                        <span
+                          className={cn(
+                            "font-semibold",
+                            isDark ? "text-slate-100" : "text-slate-800",
+                          )}
+                        >
+                          {BANK_DETAILS.accountName}
+                        </span>
+                      </p>
+                      <p className="font-mono">
+                        Account Number:{" "}
+                        <span
+                          className={cn(
+                            "font-bold text-xs",
+                            isDark ? "text-gold-500" : "text-amber-700",
+                          )}
+                        >
+                          {BANK_DETAILS.accountNumber}
+                        </span>
+                      </p>
                     </div>
                   </div>
                   <button
@@ -671,25 +782,69 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
                       "px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all cursor-pointer hover:scale-[1.01] active:translate-y-0.5",
                       copiedBank
                         ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                        : (isDark ? "bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10" : "bg-white border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-50")
+                        : isDark
+                          ? "bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10"
+                          : "bg-white border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-50",
                     )}
                   >
-                    {copiedBank ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedBank ? (
+                      <Check className="w-3.5 h-3.5" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
                     <span>{copiedBank ? "Copied" : "Copy Account"}</span>
                   </button>
                 </div>
 
                 {/* GCash Transfer item */}
-                <div className={cn(
-                  "p-4 border rounded-2xl flex flex-col md:flex-row justify-between md:items-center gap-4 transition-all",
-                  isDark ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-200"
-                )}>
+                <div
+                  className={cn(
+                    "p-4 border rounded-2xl flex flex-col md:flex-row justify-between md:items-center gap-4 transition-all",
+                    isDark
+                      ? "bg-white/[0.02] border-white/5"
+                      : "bg-slate-50 border-slate-200",
+                  )}
+                >
                   <div className="space-y-1.5 flex-1 select-text">
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider font-mono uppercase">GCASH ELECTRONIC WALLET</p>
-                    <h4 className={cn("text-xs font-bold", isDark ? "text-white" : "text-slate-900")}>GCash / Instapay</h4>
-                    <div className={cn("text-xs space-y-0.5", isDark ? "text-slate-300" : "text-slate-700")}>
-                      <p>GCash Name: <span className={cn("font-semibold", isDark ? "text-slate-100" : "text-slate-800")}>{BANK_DETAILS.gcashName}</span></p>
-                      <p className="font-mono">GCash Mobile: <span className={cn("font-bold text-xs", isDark ? "text-gold-500" : "text-amber-700")}>{BANK_DETAILS.gcashNumber}</span></p>
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider font-mono uppercase">
+                      GCASH ELECTRONIC WALLET
+                    </p>
+                    <h4
+                      className={cn(
+                        "text-xs font-bold",
+                        isDark ? "text-white" : "text-slate-900",
+                      )}
+                    >
+                      GCash / Instapay
+                    </h4>
+                    <div
+                      className={cn(
+                        "text-xs space-y-0.5",
+                        isDark ? "text-slate-300" : "text-slate-700",
+                      )}
+                    >
+                      <p>
+                        GCash Name:{" "}
+                        <span
+                          className={cn(
+                            "font-semibold",
+                            isDark ? "text-slate-100" : "text-slate-800",
+                          )}
+                        >
+                          {BANK_DETAILS.gcashName}
+                        </span>
+                      </p>
+                      <p className="font-mono">
+                        GCash Mobile:{" "}
+                        <span
+                          className={cn(
+                            "font-bold text-xs",
+                            isDark ? "text-gold-500" : "text-amber-700",
+                          )}
+                        >
+                          {BANK_DETAILS.gcashNumber}
+                        </span>
+                      </p>
                     </div>
                   </div>
                   <button
@@ -698,37 +853,64 @@ export function DonationModal({ isOpen, onClose, language, theme }: DonationModa
                       "px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all cursor-pointer hover:scale-[1.01] active:translate-y-0.5",
                       copiedGcash
                         ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                        : (isDark ? "bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10" : "bg-white border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-50")
+                        : isDark
+                          ? "bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10"
+                          : "bg-white border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-50",
                     )}
                   >
-                    {copiedGcash ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedGcash ? (
+                      <Check className="w-3.5 h-3.5" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
                     <span>{copiedGcash ? "Copied" : "Copy Number"}</span>
                   </button>
                 </div>
 
                 {/* Decorative information card */}
-                <div className={cn(
-                  "p-4 rounded-2xl text-xs space-y-1.5 leading-relaxed",
-                  isDark
-                    ? "bg-white/5 border border-white/5 text-slate-400"
-                    : "bg-amber-500/5 border border-amber-500/10 text-slate-600"
-                )}>
-                  <div className={cn(
-                    "flex items-center gap-2 font-bold mb-1",
-                    isDark ? "text-gold-500" : "text-amber-700"
-                  )}>
+                <div
+                  className={cn(
+                    "p-4 rounded-2xl text-xs space-y-1.5 leading-relaxed",
+                    isDark
+                      ? "bg-white/5 border border-white/5 text-slate-400"
+                      : "bg-amber-500/5 border border-amber-500/10 text-slate-600",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "flex items-center gap-2 font-bold mb-1",
+                      isDark ? "text-gold-500" : "text-amber-700",
+                    )}
+                  >
                     <Info className="w-4 h-4 shrink-0" />
                     <span>How to report your giving:</span>
                   </div>
-                  <p>1. Send the amount to either the bank account or GCash details above.</p>
-                  <p>2. Take a screenshot of your successful transaction receipt.</p>
-                  <p>3. Upload or message the receipt screen directly to the chat inside this app! You can type: <code className={cn("px-1 py-0.5 rounded font-mono text-[11px]", isDark ? "bg-white/5 text-white" : "bg-slate-100 text-slate-800")}>"I have sent an offering of ₱500 via GCash, here is the receipt proof."</code></p>
+                  <p>
+                    1. Send the amount to either the bank account or GCash
+                    details above.
+                  </p>
+                  <p>
+                    2. Take a screenshot of your successful transaction receipt.
+                  </p>
+                  <p>
+                    3. Upload or message the receipt screen directly to the chat
+                    inside this app! You can type:{" "}
+                    <code
+                      className={cn(
+                        "px-1 py-0.5 rounded font-mono text-[11px]",
+                        isDark
+                          ? "bg-white/5 text-white"
+                          : "bg-slate-100 text-slate-800",
+                      )}
+                    >
+                      "I have sent an offering of ₱500 via GCash, here is the
+                      receipt proof."
+                    </code>
+                  </p>
                 </div>
-
               </div>
             </div>
           )}
-
         </div>
       </div>
     </div>

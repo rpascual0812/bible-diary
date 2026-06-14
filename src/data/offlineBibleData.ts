@@ -1,3 +1,5 @@
+import type { LangType } from "../types";
+
 export interface OfflineTopic {
   keywords: string[];
   title: string;
@@ -25,7 +27,7 @@ Here are the foundational passages for times of uncertainty:
    > "You keep him in perfect peace whose mind is stayed on you, because he trusts in you."
 
 **Reflection & Comfort**:
-To find peace, turn your focus away from the storm and cast your cares upon the Eternal. Through prayer and continuous thanksgiving, the Holy Spirit will establish an unshakeable fortress around your mind.`
+To find peace, turn your focus away from the storm and cast your cares upon the Eternal. Through prayer and continuous thanksgiving, the Holy Spirit will establish an unshakeable fortress around your mind.`,
   },
   {
     keywords: ["hope", "depressed", "discouraged", "sad", "future", "tomorrow"],
@@ -44,7 +46,7 @@ In the biblical tradition, hope is more than wishful thinking—it is the confid
    > "For I know the plans I have for you, declares the Lord, plans for welfare and not for evil, to give you a future and a hope."
 
 **Guidance**:
-When we are discouraged, we must remember that God's plans are eternal. The resurrection of Christ is the ultimate pledge of hope, showing that even the deepest darkness will eventually be overcome by His radiant glory.`
+When we are discouraged, we must remember that God's plans are eternal. The resurrection of Christ is the ultimate pledge of hope, showing that even the deepest darkness will eventually be overcome by His radiant glory.`,
   },
   {
     keywords: ["melchizedek", "priest", "salem", "genesis", "hebrews"],
@@ -65,10 +67,18 @@ When we are discouraged, we must remember that God's plans are eternal. The resu
    > "Without father or mother, without genealogy, without beginning of days or end of life, resembling the Son of God, he remains a priest forever."
 
 **Theological Significance**:
-Melchizedek is a **type of Jesus Christ**. Just as Melchizedek combines the offices of both *King* and *Priest* (which law of Moses kept strictly separate) and has no recorded lineage, Jesus represents an eternal, superior priesthood that transcends the law of Aaron, bringing permanent reconciliation.`
+Melchizedek is a **type of Jesus Christ**. Just as Melchizedek combines the offices of both *King* and *Priest* (which law of Moses kept strictly separate) and has no recorded lineage, Jesus represents an eternal, superior priesthood that transcends the law of Aaron, bringing permanent reconciliation.`,
   },
   {
-    keywords: ["sermon", "mount", "matthew", "beatitudes", "blessed", "salt", "light"],
+    keywords: [
+      "sermon",
+      "mount",
+      "matthew",
+      "beatitudes",
+      "blessed",
+      "salt",
+      "light",
+    ],
     title: "The Sermon on the Mount",
     response: `### The Constitution of the Kingdom
 
@@ -91,7 +101,7 @@ The **Sermon on the Mount** (Matthew chapters 5–7) is the longest recorded dis
    Our beloved Lord's Prayer is given as the guide for connecting intimately with our Heavenly Father.
 
 5. **Building on the Rock (Matthew 7:24-27)**:
-   > "Everyone then who hears these words of mine and puts them into practice is like a wise man who built his house on the rock..."`
+   > "Everyone then who hears these words of mine and puts them into practice is like a wise man who built his house on the rock..."`,
   },
   {
     keywords: ["love", "charity", "corinthians", "commandment", "compassion"],
@@ -110,7 +120,7 @@ The Bible teaches that God is love (**Agape**), and the supreme calling of human
    > "A new commandment I give to you, that you love one another: just as I have loved you, you also are to love one another."
 
 **The Essence**:
-Biblical love is not a transient emotion, but a sacrificial commitment of the will that seeks the ultimate well-being of others, modeled perfectly on the cross of Calvary.`
+Biblical love is not a transient emotion, but a sacrificial commitment of the will that seeks the ultimate well-being of others, modeled perfectly on the cross of Calvary.`,
   },
   {
     keywords: ["faith", "believe", "trust", "doubt", "hebrews 11"],
@@ -129,7 +139,7 @@ According to biblical definition, faith is the confident trust in God's reliabil
    > "For by grace you have been saved through faith. And this is not your own doing; it is the gift of God..."
 
 **Application**:
-Faith is tested and proven in fire. True faith chooses to trust God's promises even when current circumstances imply otherwise.`
+Faith is tested and proven in fire. True faith chooses to trust God's promises even when current circumstances imply otherwise.`,
   },
   {
     keywords: ["jesus", "christ", "gospel", "saviour", "savior", "messiah"],
@@ -148,7 +158,7 @@ In the Holy Scriptures, Jesus is revealed as the incarnate Word of God, the prom
    > "Jesus said to him, 'I am the way, and the truth, and the life. No one comes to the Father except through me.'"
 
 **Core Mission**:
-The Gospels document how Jesus lived a sinless life, demonstrated signs and wonders, chose of humble disciples, suffered crucifixion as an offering for human transgressions, and triumphantly rose from the grave to conquer death.`
+The Gospels document how Jesus lived a sinless life, demonstrated signs and wonders, chose of humble disciples, suffered crucifixion as an offering for human transgressions, and triumphantly rose from the grave to conquer death.`,
   },
   {
     keywords: ["esther", "mordecai", "haman", "purim", "wood", "queen"],
@@ -167,7 +177,7 @@ The **Book of Esther** tells the fascinating story of a young Jewish exile who b
    > "I will go to the king, though it is against the law, and if I perish, I perish."
 
 **Resolution**:
-Esther successfully exposed Haman's plot, leading to Haman's downfall, Mordecai's promotion, and the security of Israel, celebrated annually during the festival of **Purim**.`
+Esther successfully exposed Haman's plot, leading to Haman's downfall, Mordecai's promotion, and the security of Israel, celebrated annually during the festival of **Purim**.`,
   },
   {
     keywords: ["psalm 23", "shepherd", "lord is my shepherd", "valley"],
@@ -185,13 +195,22 @@ Written by King David—who was a shepherd himself before he sat on the throne�
 4. **"You prepare a table before me in the presence of my enemies; you anoint my head with oil; my cup overflows."**
    * *Meaning*: Celebration of abundance and divine favor, safe from harm.
 5. **"Surely goodness and mercy shall follow me all the days of my life, and I shall dwell in the house of the Lord forever."**
-   * *Meaning*: Our ultimate home is the presence of God eternally.`
-  }
+   * *Meaning*: Our ultimate home is the presence of God eternally.`,
+  },
 ];
 
 export const offlineBibleDatabaseFil: OfflineTopic[] = [
   {
-    keywords: ["kapayapaan", "nababalisa", "alalahanin", "pag-aalala", "ligalig", "takot", "mabalisa", "peace"],
+    keywords: [
+      "kapayapaan",
+      "nababalisa",
+      "alalahanin",
+      "pag-aalala",
+      "ligalig",
+      "takot",
+      "mabalisa",
+      "peace",
+    ],
     title: "Pagtatamo ng Banal na Kapayapaan",
     response: `### Karunungan ng Kasulatan Ukol sa Kapayapaan
 
@@ -210,10 +229,19 @@ Narito ang mga pundasyong talata sa panahon ng kawalang-katiyakan:
    > "Iyong iingatan siya sa ganap na kapayapaan, na ang pag-iisip ay nananatili sa iyo; sapagkat siya'y tumitiwala sa iyo."
 
 **Pagninilay at Pag-aliw**:
-Upang makasumpong ng kapayapaan, ilayo ang paningin sa bagyo at ipagkatiwala ang iyong mga alalahanin sa Walang Hanggan. Sa pamamagitan ng panalangin at pasasalamat, ang Espiritu Santo ay magtatayo ng isang matatag na tanggulan sa iyong isipan.`
+Upang makasumpong ng kapayapaan, ilayo ang paningin sa bagyo at ipagkatiwala ang iyong mga alalahanin sa Walang Hanggan. Sa pamamagitan ng panalangin at pasasalamat, ang Espiritu Santo ay magtatayo ng isang matatag na tanggulan sa iyong isipan.`,
   },
   {
-    keywords: ["pag-asa", "pagasa", "depresyon", "pinanghihinaan", "lungkot", "hinaharap", "bukas", "hope"],
+    keywords: [
+      "pag-asa",
+      "pagasa",
+      "depresyon",
+      "pinanghihinaan",
+      "lungkot",
+      "hinaharap",
+      "bukas",
+      "hope",
+    ],
     title: "Pag-asa sa Gitna ng mga Pagsubok",
     response: `### Ang Angkla ng Pag-asa
 
@@ -229,10 +257,17 @@ Sa tradisyon ng Bibliya, ang pag-asa ay higit pa sa simpleng pagnanais—ito ay 
    > "Sapagkat batid ko ang mga plano ko para sa inyo, declares ng Panginoon, mga plano para sa inyong ikabubuti at hindi sa inyong ikakasama, upang bigyan kayo ng magandang kinabukasan at pag-asa."
 
 **Gabay**:
-Kapag tayo ay pinanghihinaan ng loob, dapat nating alalahanin na ang mga plano ng Diyos ay walang hanggan. Ang muling pagkabuhay ni Kristo ang pinakadakilang patunay ng pag-asa, na nagpapakita na kahit ang pinakamalalim na kadiliman ay mapagtatagumpayan ng Kanyang maningning na kaluwalhatian.`
+Kapag tayo ay pinanghihinaan ng loob, dapat nating alalahanin na ang mga plano ng Diyos ay walang hanggan. Ang muling pagkabuhay ni Kristo ang pinakadakilang patunay ng pag-asa, na nagpapakita na kahit ang pinakamalalim na kadiliman ay mapagtatagumpayan ng Kanyang maningning na kaluwalhatian.`,
   },
   {
-    keywords: ["melquisedek", "melchizedek", "saserdote", "salem", "genesis", "hebreo"],
+    keywords: [
+      "melquisedek",
+      "melchizedek",
+      "saserdote",
+      "salem",
+      "genesis",
+      "hebreo",
+    ],
     title: "Ang Hiwaga ni Melquisedek",
     response: `### Sino si Melquisedek?
 
@@ -250,10 +285,20 @@ Si **Melquisedek** ay isa sa mga pinaka-misteryosong pigura sa kasaysayan ng Bib
    > "Wala siyang ama o ina, walang talaan ng lahi, walang simula ng mga araw o katapusan ng buhay, kundi katulad ng Anak ng Diyos, siya ay nananatiling saserdote magpakailanman."
 
 **Teolohikal na Kahalagahan**:
-Si Melquisedek ay isang **anino (type) ni Hesukristo**. Kung paanong pinagsama ni Melquisedek ang tungkulin ng *Hari* at *Saserdote* (na mahigpit na pinaghihiwalay sa ilalim ng kautusan ni Moises) at walang naitalang lahi, kinakatawan ni Hesus ang isang walang hanggan, mas higit na pagkasaserdote na lumalagpas sa batas ni Aaron, na nagdadala ng permanenteng pakikipagkasundo sa Diyos.`
+Si Melquisedek ay isang **anino (type) ni Hesukristo**. Kung paanong pinagsama ni Melquisedek ang tungkulin ng *Hari* at *Saserdote* (na mahigpit na pinaghihiwalay sa ilalim ng kautusan ni Moises) at walang naitalang lahi, kinakatawan ni Hesus ang isang walang hanggan, mas higit na pagkasaserdote na lumalagpas sa batas ni Aaron, na nagdadala ng permanenteng pakikipagkasundo sa Diyos.`,
   },
   {
-    keywords: ["sermon sa bundok", "sermon", "mount", "matthew", "mateo", "beatitudes", "mapapalad", "asin", "ilaw"],
+    keywords: [
+      "sermon sa bundok",
+      "sermon",
+      "mount",
+      "matthew",
+      "mateo",
+      "beatitudes",
+      "mapapalad",
+      "asin",
+      "ilaw",
+    ],
     title: "Ang Sermon sa Bundok",
     response: `### Ang Konstitusyon ng Kaharian
 
@@ -276,10 +321,19 @@ Ang **Sermon sa Bundok** (Mateo kabanata 5–7) ang pinakamahabang naitalang pah
    Ang ating minamahal na "Ama Namin" ay ibinigay bilang gabay sa malapit na pakikipag-ugnayan sa ating Ama sa Langit.
 
 5. **Pagtatayo sa Ibabaw ng Bato (Mateo 7:24-27)**:
-   > "Kaya't ang bawat nakikinig sa aking mga salita at nagsasagawa nito ay maihahalintulad sa isang matalinong tao na nagtayo ng kanyang bahay sa ibabaw ng bato..."`
+   > "Kaya't ang bawat nakikinig sa aking mga salita at nagsasagawa nito ay maihahalintulad sa isang matalinong tao na nagtayo ng kanyang bahay sa ibabaw ng bato..."`,
   },
   {
-    keywords: ["pag-ibig", "pagibig", "mahal", "utos", "habag", "karidad", "corinto", "love"],
+    keywords: [
+      "pag-ibig",
+      "pagibig",
+      "mahal",
+      "utos",
+      "habag",
+      "karidad",
+      "corinto",
+      "love",
+    ],
     title: "Ang Dakilang Utos: Pag-ibig",
     response: `### Pag-ibig Ayon sa mga Kasulatan
 
@@ -295,10 +349,17 @@ Itinuturo ng Bibliya na ang Diyos ay pag-ibig (**Agape**), at ang pinakadakilang
    > "Isang bagong utos ang ibinibigay ko sa inyo, na kayo'y mag-ibigan sa isa't isa; gaya ng pag-ibig ko sa inyo, ay mag-ibigan din naman kayo sa isa't isa."
 
 **Ang Kakanyahan**:
-Ang pag-ibig sa Bibliya ay hindi isang lumilipas na emosyon, kundi isang mapagpakasakit na pangako ng kalooban na naghahangad ng pinakamabuti para sa iba, na perpektong ipinakita sa krus ng Kalbaryo.`
+Ang pag-ibig sa Bibliya ay hindi isang lumilipas na emosyon, kundi isang mapagpakasakit na pangako ng kalooban na naghahangad ng pinakamabuti para sa iba, na perpektong ipinakita sa krus ng Kalbaryo.`,
   },
   {
-    keywords: ["pananampalataya", "tiwala", "maniwala", "duda", "hebreo 11", "faith"],
+    keywords: [
+      "pananampalataya",
+      "tiwala",
+      "maniwala",
+      "duda",
+      "hebreo 11",
+      "faith",
+    ],
     title: "Pag-unawa sa Pananampalataya",
     response: `### Kahulugan ng Pananampalataya
 
@@ -314,10 +375,17 @@ Ayon sa kahulugan ng Bibliya, ang pananampalataya ay ang matatag na pagtitiwala 
    > "Sapagkat sa biyaya kayo naligtas sa pamamagitan ng pananampalataya. At ito ay hindi sa inyong sarili; ito ay kaloob ng Diyos..."
 
 **Pagsasabuhay**:
-Ang pananampalataya ay sinusubok at pinatutunayan sa –apoy. Pinipili ng tunay na pananampalataya na magtiwala sa mga pangako ng Diyos kahit na tila iba ang ipinahihiwatig ng kasalukuyang mga kalagayan.`
+Ang pananampalataya ay sinusubok at pinatutunayan sa –apoy. Pinipili ng tunay na pananampalataya na magtiwala sa mga pangako ng Diyos kahit na tila iba ang ipinahihiwatig ng kasalukuyang mga kalagayan.`,
   },
   {
-    keywords: ["hesus", "hesukristo", "ebanghelyo", "tagapagligtas", "mesiyas", "jesus"],
+    keywords: [
+      "hesus",
+      "hesukristo",
+      "ebanghelyo",
+      "tagapagligtas",
+      "mesiyas",
+      "jesus",
+    ],
     title: "Ang Pagkakakilanlan ni Hesukristo",
     response: `### Si Hesus na Mesiyas
 
@@ -333,7 +401,7 @@ Sa Banal na Kasulatan, si Hesus ay ipinakikilala bilang nagkatawang-taong Salita
    > "Sinabi sa kaniya ni Hesus, 'Ako ang daan, at ang katotohanan, at ang buhay. Walang sinumang makakapunta sa Ama kundi sa pamamagitan ko.'"
 
 **Pangunahing Misyon**:
-Idinedetalye ng mga Ebanghelyo kung paano namuhay si Hesus nang walang kasalanan, gumawa ng mga tanda at kamangha-manghang gawa, pumili ng mga mapagpakumbabang alagad, dumanas ng kamatayan sa krus upang maging bayad sa mga kasalanan ng tao, at matagumpay na muling nabuhay upang talunin ang kamatayan.`
+Idinedetalye ng mga Ebanghelyo kung paano namuhay si Hesus nang walang kasalanan, gumawa ng mga tanda at kamangha-manghang gawa, pumili ng mga mapagpakumbabang alagad, dumanas ng kamatayan sa krus upang maging bayad sa mga kasalanan ng tao, at matagumpay na muling nabuhay upang talunin ang kamatayan.`,
   },
   {
     keywords: ["ester", "esther", "mordecai", "haman", "purim", "reyna"],
@@ -352,7 +420,7 @@ Ang **Aklat ni Ester** ay naglalahad ng kamangha-manghang kwento ng isang batang
    > "Haharap ako sa hari, kahit na ito'y labag sa batas. At kung ako'y mamatay, mamatay nga."
 
 **Katapusan**:
-Matagumpay na ibinunyag ni Ester ang masamang balak ni Haman, na nagdulot ng pagbagsak ni Haman, promosyon ni Mordecai, at seguridad para sa Israel, na ipinagdiriwang taun-taon sa pista ng **Purim**.`
+Matagumpay na ibinunyag ni Ester ang masamang balak ni Haman, na nagdulot ng pagbagsak ni Haman, promosyon ni Mordecai, at seguridad para sa Israel, na ipinagdiriwang taun-taon sa pista ng **Purim**.`,
   },
   {
     keywords: ["salmo 23", "psalm 23", "pastol", "aking pastol", "lambak"],
@@ -370,13 +438,20 @@ Isinulat ni Haring David—na mismong pastol bago umupo sa trono—ang Salmo 23 
 4. **"Ipinaghahanda mo ako ng dulang sa harap ng aking mga kaaway; iyong pinahiran ng langis ang aking ulo; ang aking saro ay umaapaw."**
    * *Kahulugan*: Pagdiriwang ng dagsang biyaya at banal na pabor sa gitna ng panganib.
 5. **"Tiyak na ang kabutihan at kaawaan ay susunod sa akin sa lahat ng mga araw ng aking buhay, at ako'y tatahan sa bahay ng Panginoon magpakailanman."**
-   * *Kahulugan*: Ang ating huling hantungan ay ang pananatili sa banal na presensya ng Diyos sa walang hanggan.`
-  }
+   * *Kahulugan*: Ang ating huling hantungan ay ang pananatili sa banal na presensya ng Diyos sa walang hanggan.`,
+  },
 ];
 
 export const offlineBibleDatabaseCeb: OfflineTopic[] = [
   {
-    keywords: ["kalinaw", "nabalaka", "kabalaka", "kahadlok", "kagubot", "peace"],
+    keywords: [
+      "kalinaw",
+      "nabalaka",
+      "kabalaka",
+      "kahadlok",
+      "kagubot",
+      "peace",
+    ],
     title: "Pagpangita sa Balaang Kalinaw",
     response: `### Kasulatanhong Kaalam Bahin sa Kalinaw
 
@@ -395,10 +470,18 @@ Ania ang mga mahinungdanong bersikulo sa panahon sa kalisdanan:
    > "Imo siyang tipigan sa hingpit nga kalinaw kansang hunahuna nagapabilin kanimo, tungod kay siya nagsalig kanimo."
 
 **Pamalandong**:
-Aron makaplagan ang kalinaw, ipahilayo ang imong hunahuna gikan sa unos ug isalig ang imong mga kabalaka sa Lamtang Walay Katapusan. Pinaagi sa pag-ampo ug pagpasalamat, ang Espiritu Santo magtukod og usa ka lig-on nga kuta sa imong isiphan.`
+Aron makaplagan ang kalinaw, ipahilayo ang imong hunahuna gikan sa unos ug isalig ang imong mga kabalaka sa Lamtang Walay Katapusan. Pinaagi sa pag-ampo ug pagpasalamat, ang Espiritu Santo magtukod og usa ka lig-on nga kuta sa imong isiphan.`,
   },
   {
-    keywords: ["paglaum", "kasubo", "nagsubo", "kapakyasan", "ugma", "kaugmaon", "hope"],
+    keywords: [
+      "paglaum",
+      "kasubo",
+      "nagsubo",
+      "kapakyasan",
+      "ugma",
+      "kaugmaon",
+      "hope",
+    ],
     title: "Paglaum sa Taliwala sa mga Pagsulay",
     response: `### Ang Angkla sa Paglaum
 
@@ -414,10 +497,17 @@ Sa tradisyon sa Bibliya, ang paggunit sa paglaum dili lang yano nga pangandoy—
    > "Kay nasayod ako sa mga plano nga ania kanako para kaninyo, nag-ingon ang Ginoo, mga plano alang sa kaayohan ug dili sa dautan, sa paghatag kaninyo ug kaugmaon ug paglaum."
 
 **Pagtulon-an**:
-Kon kita mamingaw ug magsubo, kinahanglan natong hinumduman nga ang mga plano ng Dios alang sa kahangturan. Ang pagkabanhaw ni Kristo mao ang labing dako nga garantiya sa paglaum.`
+Kon kita mamingaw ug magsubo, kinahanglan natong hinumduman nga ang mga plano ng Dios alang sa kahangturan. Ang pagkabanhaw ni Kristo mao ang labing dako nga garantiya sa paglaum.`,
   },
   {
-    keywords: ["melquisedec", "melchizedek", "pari", "salem", "genesis", "hebreohanon"],
+    keywords: [
+      "melquisedec",
+      "melchizedek",
+      "pari",
+      "salem",
+      "genesis",
+      "hebreohanon",
+    ],
     title: "Ang Misteryo ni Melquisedec",
     response: `### Kinsa si Melquisedec?
 
@@ -435,10 +525,19 @@ Si **Melquisedec** usa sa labing makaiikag ug misteryosong tawo sa kasaysayan sa
    > "Walay amahan, walay inahan, walay kagikanan, walay sinugdanan sa mga adlaw o katapusan sa kinabuhi, apan nahisama sa Anak sa Dios, nagapabilin siya nga pari sa walay katapusan."
 
 **Teolohikanhong Kahulugan**:
-Si Melquisedec usa ka **landong (type) ni Hesukristo**. Gihiusa ni Melquisedec ang katungdanan sa *Hari* ug *Pari* (nga gidili sa balaod ni Moises). Sama kaniya, si Hesus adunay walay katapusan ug labi ka labaw nga pagkapari nga nagdala ug hingpit nga pakigbinalikay sa Dios.`
+Si Melquisedec usa ka **landong (type) ni Hesukristo**. Gihiusa ni Melquisedec ang katungdanan sa *Hari* ug *Pari* (nga gidili sa balaod ni Moises). Sama kaniya, si Hesus adunay walay katapusan ug labi ka labaw nga pagkapari nga nagdala ug hingpit nga pakigbinalikay sa Dios.`,
   },
   {
-    keywords: ["sermon sa bukid", "sermon", "bukid", "mateo", "beatitudes", "bulahan", "asin", "kahayag"],
+    keywords: [
+      "sermon sa bukid",
+      "sermon",
+      "bukid",
+      "mateo",
+      "beatitudes",
+      "bulahan",
+      "asin",
+      "kahayag",
+    ],
     title: "Ang Sermon sa Bukid",
     response: `### Ang Konstitusyon sa Gingharian sa Dios
 
@@ -461,10 +560,18 @@ Ang **Sermon sa Bukid** (Mateo kabanata 5–7) mao ang labing taas nga narekord 
    Ang "Amahan Namo" gihatag ingon nga giya sa pag-ampo sa atong Langitnong Amahan.
 
 5. **Pagtukod ibabaw sa Bato (Mateo 7:24-27)**:
-   > "Busa bisan kinsa nga makadungog niining akong mga pulong ug magatuman niini, mahisama siya sa usa ka maalamong tawo nga nagtukod sa iyang balay ibabaw sa bato..."`
+   > "Busa bisan kinsa nga makadungog niining akong mga pulong ug magatuman niini, mahisama siya sa usa ka maalamong tawo nga nagtukod sa iyang balay ibabaw sa bato..."`,
   },
   {
-    keywords: ["gugma", "higugma", "corinto", "sugo", "malasakit", "kaluoy", "love"],
+    keywords: [
+      "gugma",
+      "higugma",
+      "corinto",
+      "sugo",
+      "malasakit",
+      "kaluoy",
+      "love",
+    ],
     title: "Ang Labing Gamhanang Sugo: Gugma",
     response: `### Ang Gugma Sumala sa mga Kasulatan
 
@@ -480,7 +587,7 @@ Nagatandog ang Bibliya nga ang Dios gugma (**Agape**), ug ang labing dako nga ta
    > "Usa ka bag-ong sugo ang akong ihatag kaninyo, nga maghigugmaay kamo sa usag usa; ingon nga ako nahigugma kaninyo, maghigugmaay usab kamo sa usag usa."
 
 **Ang Kahulugan**:
-Ang diosnong gugma dili lumalabay nga emosyon, kondili usa ka sakripisyong pagpili sa kabubut-on nga nagtinguha sa labing maayo alang sa uban, nga hingpit nga gipakita didto sa krus sa Kalbaryo.`
+Ang diosnong gugma dili lumalabay nga emosyon, kondili usa ka sakripisyong pagpili sa kabubut-on nga nagtinguha sa labing maayo alang sa uban, nga hingpit nga gipakita didto sa krus sa Kalbaryo.`,
   },
   {
     keywords: ["pagtoo", "pagtuo", "salig", "tuo", "hebreohanon 11", "faith"],
@@ -499,10 +606,17 @@ Sumala sa kahulugan sa Bibliya, ang pagtuo o pagtoo mao ang masaligong pagsalig 
    > "Kay pinaagi sa grasya kamo naluwas pinaagi sa pagtuo. Ug kini dili sa inyong kaugalingon; kini regalo gikan sa Dios..."
 
 **Pagpadapat**:
-Ang pagtuo gisulayan ug giputli sa kalayo. Ang tinuod nga pagtuo nagpili sa pagsalig sa mga saad sa Dios bisan pa kon ang kahimtang daw supak niini.`
+Ang pagtuo gisulayan ug giputli sa kalayo. Ang tinuod nga pagtuo nagpili sa pagsalig sa mga saad sa Dios bisan pa kon ang kahimtang daw supak niini.`,
   },
   {
-    keywords: ["hesus", "hesukristo", "ebanghelyo", "tigluwas", "mesiyas", "jesus"],
+    keywords: [
+      "hesus",
+      "hesukristo",
+      "ebanghelyo",
+      "tigluwas",
+      "mesiyas",
+      "jesus",
+    ],
     title: "Ang Pagkatawo ni Hesukristo",
     response: `### Si Hesus nga Mesiyas
 
@@ -518,7 +632,7 @@ Sa Banal nga Kasulatan, si Hesus gipaila ingon nga nagpakatawo nga Pulong sa Dio
    > "Si Hesus miingon kaniya, 'Ako mao ang dalan, ug ang kamatuoran, ug ang kinabuhi. Walay makadto sa Amahan gawas pinaagi kanako.'"
 
 **Misyon**:
-Gipakita sa mga Ebanghelyo kon giunsa pagkinabuhi ni Hesus nga walay sala, paghimo ug mga milagro, pagpili sa Iyang mga apostoles, pag-ula sa Iyang dugo sa krus alang sa kapasayloan sa sala, ug mahimayaong pagkabanhaw gikan sa lubnganan.`
+Gipakita sa mga Ebanghelyo kon giunsa pagkinabuhi ni Hesus nga walay sala, paghimo ug mga milagro, pagpili sa Iyang mga apostoles, pag-ula sa Iyang dugo sa krus alang sa kapasayloan sa sala, ug mahimayaong pagkabanhaw gikan sa lubnganan.`,
   },
   {
     keywords: ["ester", "esther", "mordecai", "haman", "purim", "rayna"],
@@ -537,7 +651,7 @@ Ang **Basahon ni Ester** nagasaysay sa nindot nga sugilanon sa usa ka batan-ong 
    > "Moadto ako sa hari, bisan supak sa balaod; ug kon mamatay ako, mamatay ako."
 
 **Katapusan**:
-Malamposong gipadayag ni Ester ang dautang huna-huna ni Haman, nga misangpot sa kapakyasan ni Haman, promosyon ni Mordecai, ug kaluwasan sa mga Judio, nga gisaulog matag tuig sa pista sa **Purim**.`
+Malamposong gipadayag ni Ester ang dautang huna-huna ni Haman, nga misangpot sa kapakyasan ni Haman, promosyon ni Mordecai, ug kaluwasan sa mga Judio, nga gisaulog matag tuig sa pista sa **Purim**.`,
   },
   {
     keywords: ["salmo 23", "psalm 23", "magbalantay", "ginoo mao", "walog"],
@@ -554,13 +668,21 @@ Gisulat ni Haring David—nga usa usab ka magbalantay sa karnero sa wala pa mili
    * *Kahulugan*: Ang *baras* o lipak gigamit batok sa mabangis nga mananap, ug ang *sungkod* (may pakurba) gigamit sa pagluwas o paggiya sa karnero nga nahisalaag.
 4. **"Giandam mo ang lamesa sa akong atubangan taliwala sa akong mga kaaway; gidihogan mo ang akong ulo sa lana; moawas ang akong kopa."**
    * *Kahulugan*: Pasundayag sa kadagaya sa grasya sa Dio5. **"Sa pagkatinuod, ang kaayo ug kalooy magasunod kanako sa tanang adlaw sa akong kinabuhi, ug mopuyo ako sa balay sa Ginoo hangtod sa kahangturan."**
-    * *Kahulugan*: Atong katapusan nga puy-anan mao ang balaang presensya sa Dios sa walay katapusan.`
-  }
+    * *Kahulugan*: Atong katapusan nga puy-anan mao ang balaang presensya sa Dios sa walay katapusan.`,
+  },
 ];
 
 export const offlineBibleDatabaseBik: OfflineTopic[] = [
   {
-    keywords: ["katoninongan", "hadit", "paha'it", "worasyon", "kapayapaan", "mabalisa", "peace"],
+    keywords: [
+      "katoninongan",
+      "hadit",
+      "paha'it",
+      "worasyon",
+      "kapayapaan",
+      "mabalisa",
+      "peace",
+    ],
     title: "Pagsungko kan Langitnon na Katoninongan",
     response: `### Karunungan kan Kasuratan Manungod sa Katoninongan
 
@@ -579,10 +701,18 @@ Ini an mga pundasyonal na bersikulo sa panahon kan kawaran nin kasegurohan:
    > "Iingatan mo siya sa ganap na katoninongan, na an pag-iisip nakasarig sa imo; huli ta siya nagtitiwala sa imo."
 
 **Pagninilay-nilay asin Pagranga**:
-Tanganing makakua nin katoninongan, irayô an paghiling sa bagyo asin ipagkatiwala an saindong mga kahaditan sa Daing Hanggan. Sa paagi kan pagdasal asin pagpapasalamat, an Espiritu Santo magtitogdok nin sarong matatag na kota sa saindong isip.`
+Tanganing makakua nin katoninongan, irayô an paghiling sa bagyo asin ipagkatiwala an saindong mga kahaditan sa Daing Hanggan. Sa paagi kan pagdasal asin pagpapasalamat, an Espiritu Santo magtitogdok nin sarong matatag na kota sa saindong isip.`,
   },
   {
-    keywords: ["paglaom", "mundog", "nalulungkot", "pinanghihinaan", "kaugmaon", "future", "hope"],
+    keywords: [
+      "paglaom",
+      "mundog",
+      "nalulungkot",
+      "pinanghihinaan",
+      "kaugmaon",
+      "future",
+      "hope",
+    ],
     title: "Paglaom sa Tahaw kan mga Pagsubok",
     response: `### Ang Angkla kan Paglaom
 
@@ -598,10 +728,17 @@ Sa tradisyon kan Biblia, an paggunit sa paglaom bako sanang simpleng pagnanaw—
    > "Huli ta aram ko an mga plano ko para saindo, saysay kan Kagurangnan, mga plano para sa saindong ikakahayag asin bako sa ikakadaot, tanganing tawan kamo nin magayun na kaugmaon asin paglaom."
 
 **Katutudan**:
-Kun kita minalunod sa kamundugan, dapat tang girumdumon na an mga plano kan Dios daing katapusan. An pagkabuhay liwat ni Cristo an pinakadakilang patunay kan paglaom, na nagpapahiling na dawa an pinakamararom na kadikloman mapapangganahan kan Iyang liwanag.`
+Kun kita minalunod sa kamundugan, dapat tang girumdumon na an mga plano kan Dios daing katapusan. An pagkabuhay liwat ni Cristo an pinakadakilang patunay kan paglaom, na nagpapahiling na dawa an pinakamararom na kadikloman mapapangganahan kan Iyang liwanag.`,
   },
   {
-    keywords: ["melquisedec", "melchizedek", "padi", "salem", "genesis", "hebreo"],
+    keywords: [
+      "melquisedec",
+      "melchizedek",
+      "padi",
+      "salem",
+      "genesis",
+      "hebreo",
+    ],
     title: "An Misteryo ni Melquisedec",
     response: `### Siisay si Melquisedec?
 
@@ -619,10 +756,19 @@ Si **Melquisedec** saro sa mga pinakamisteryosong persona sa kasaysayan kan Bibl
    > "Mayong ama, mayong ina, mayong talaan nin linahe, mayong kapoonan kan mga aldaw o katapusan kan buhay, kundi siring sa Anak kan Dios, siya nagdadanay na padi sagkod sa lamang."
 
 **Teolohikal na Kahalagahan**:
-Si Melquisedec sarong **anino (type) ni Hesukristo**. Pinagsaro ni Melquisedec an katorogan nin *Hade* asin *Padi* (na bawal sa irarom kan ley ni Moises). Siring saiya, si Hesus nagrerepresentar kan daing katapusan asin mas superior na pagkapadi na naghahatid nin permanenteng pakipag-ulian sa Dios.`
+Si Melquisedec sarong **anino (type) ni Hesukristo**. Pinagsaro ni Melquisedec an katorogan nin *Hade* asin *Padi* (na bawal sa irarom kan ley ni Moises). Siring saiya, si Hesus nagrerepresentar kan daing katapusan asin mas superior na pagkapadi na naghahatid nin permanenteng pakipag-ulian sa Dios.`,
   },
   {
-    keywords: ["sermon sa bukid", "sermon", "bukid", "mateo", "beatitudes", "paladan", "asin", "liwanag"],
+    keywords: [
+      "sermon sa bukid",
+      "sermon",
+      "bukid",
+      "mateo",
+      "beatitudes",
+      "paladan",
+      "asin",
+      "liwanag",
+    ],
     title: "An Sermon sa Bukid",
     response: `### An Konstitusyon kan Kaharian kan Dios
 
@@ -645,10 +791,18 @@ An **Sermon sa Bukid** (Mateo kabanata 5–7) iyo an pinakahalabang nakarekord n
    An "Ama Niamo" iyo an tinaong gabay sa dayupot na pakipag-isip-isip sa satong Ama sa Langit.
 
 5. **Pagtogdok sa Ibabaw kan Gapo (Mateo 7:24-27)**:
-   > "Kaya an lambang nagdadangog kaining sakuyang mga tataramon asin naggigibo kaini, maihahambing sa sarong madunong na tawo na nagpatogdok kan saiyang harong sa ibabaw kan gapo..."`
+   > "Kaya an lambang nagdadangog kaining sakuyang mga tataramon asin naggigibo kaini, maihahambing sa sarong madunong na tawo na nagpatogdok kan saiyang harong sa ibabaw kan gapo..."`,
   },
   {
-    keywords: ["pagkamoot", "namumutan", "corinto", "sugo", "kaluoy", "habag", "love"],
+    keywords: [
+      "pagkamoot",
+      "namumutan",
+      "corinto",
+      "sugo",
+      "kaluoy",
+      "habag",
+      "love",
+    ],
     title: "An Pinakadakulang Kasugoan: Pagkamoot",
     response: `### Ang Pagkamoot Susog sa Kasuratan
 
@@ -664,7 +818,7 @@ Ipinapasabot kan Biblia na an Dios pagkamoot (**Agape**), asin an pinakahalangka
    > "Sarong bagong kasugoan an itinatao ko saindo, na mamoot kamo sa lambang saro; siring na namutan ko kamo, mamoot man kamo sa lambang saro."
 
 **An Kakanyahan**:
-An pagkamoot sa Biblia bako sanang lumilipas na emosyon, kundi sarong mapagsakripisyong panuga kan boot na naghahanap kan ikakaburay kan kapwa, na ipinakita nin perpekto sa krus kan Kalbaryo.`
+An pagkamoot sa Biblia bako sanang lumilipas na emosyon, kundi sarong mapagsakripisyong panuga kan boot na naghahanap kan ikakaburay kan kapwa, na ipinakita nin perpekto sa krus kan Kalbaryo.`,
   },
   {
     keywords: ["pagtubod", "sarig", "tiwala", "tubod", "hebreo 11", "faith"],
@@ -683,10 +837,17 @@ Susog sa kahulugan kan Biblia, an pagtubod iyo an masasarigan na pagtiwala sa ka
    > "Huli ta sa biyaya kamo naligtas sa paagi kan pagtubod. Asin ini bako sa saindong sadiri; ini balaog gikan sa Dios..."
 
 **Pagpadapat**:
-An pagtubod pinatutunayan asin pigsusubokan sa kalayo. Pinipili kan tunay na pagtubod na magsarig sa mga panuga kan Dios dawa pa tila iba an ipinapahiling kan presenteng mga kamugtakan.`
+An pagtubod pinatutunayan asin pigsusubokan sa kalayo. Pinipili kan tunay na pagtubod na magsarig sa mga panuga kan Dios dawa pa tila iba an ipinapahiling kan presenteng mga kamugtakan.`,
   },
   {
-    keywords: ["hesus", "hesukristo", "ebanghelyo", "paraligtas", "mesiyas", "jesus"],
+    keywords: [
+      "hesus",
+      "hesukristo",
+      "ebanghelyo",
+      "paraligtas",
+      "mesiyas",
+      "jesus",
+    ],
     title: "An Pagkakakilanlan ni Hesukristo",
     response: `### Si Hesus na Mesiyas
 
@@ -702,7 +863,7 @@ Sa Banal na Kasuratan, si Hesus ipinapakamidbid bilang nagkatawang-taong Tataram
    > "Sinabi saiya ni Hesus, 'Ako an dalan, an katotohanan, asin an buhay. Mayo nin siisay man na makakaduman sa Ama kundi sa paagi sako.'"
 
 **Pangunot na Misyon**:
-Inilalahad kan mga Ebanghelyo kun pano namuhay si Hesus na mayong kasalanan, naggibo nin mga milagro, nagpili nin mga mapapakumbabang disipulo, nagsakit asin nagadan sa krus tanganing magin bayad sa kasalanan kan tawo, asin matagumpay na nabuhay liwat tanganing daogon an kagadanan.`
+Inilalahad kan mga Ebanghelyo kun pano namuhay si Hesus na mayong kasalanan, naggibo nin mga milagro, nagpili nin mga mapapakumbabang disipulo, nagsakit asin nagadan sa krus tanganing magin bayad sa kasalanan kan tawo, asin matagumpay na nabuhay liwat tanganing daogon an kagadanan.`,
   },
   {
     keywords: ["ester", "esther", "mordecai", "haman", "purim", "reyna"],
@@ -721,7 +882,7 @@ An **Libro ni Ester** nag-iistorya kan magayunon na estorya nin sarong aking Jud
    > "Maduman ako sa hade, dawa siko labag sa ley. Asin kun ako magadan, dila magadan."
 
 **Katapusan**:
-Malamposong ibinunyag ni Ester an masamang plano ni Haman, na nagin rason kan kapahamakan ni Haman, promosyon ni Mordecai, asin seguridad kan banwang Israel, na ipinagdiriwang taun-taon sa kapiestahan kan **Purim**.`
+Malamposong ibinunyag ni Ester an masamang plano ni Haman, na nagin rason kan kapahamakan ni Haman, promosyon ni Mordecai, asin seguridad kan banwang Israel, na ipinagdiriwang taun-taon sa kapiestahan kan **Purim**.`,
   },
   {
     keywords: ["salmo 23", "psalm 23", "pastor", "mabuting pastor", "walog"],
@@ -739,13 +900,21 @@ Isinurat ni Hading David—na pastor man kan karnero kan aki pa bago nagtukaw sa
 4. **"Ipinaghahanda mo ako nin lamesa sa atubangan kan sakuyang mga kaiwal; linahidan mo nin lana an sakuyang payo; nagmamarakas an sakuyang saro."**
    * *Kahulugan*: Pagdiriwang kan labi-labing biyaya asin pabor kan Dios sa tahaw kan kapahamakan.
 5. **"Sa katunayan, an karayohan asin kaawaan magsusunod sako sa gabos na aldaw kan sakuyang buhay, asin maerok ako sa harong kan Kagurangnan sagkod sa lamang."**
-   * *Kahulugan*: An satuyang huring puy-anan iyo an banal na presensya kan Dios sagkod sa lamang.`
-  }
+   * *Kahulugan*: An satuyang huring puy-anan iyo an banal na presensya kan Dios sagkod sa lamang.`,
+  },
 ];
 
 export const offlineBibleDatabaseIlo: OfflineTopic[] = [
   {
-    keywords: ["talna", "kapayapaan", "katalnaan", "madandanan", "danag", "kaburbar", "peace"],
+    keywords: [
+      "talna",
+      "kapayapaan",
+      "katalnaan",
+      "madandanan",
+      "danag",
+      "kaburbar",
+      "peace",
+    ],
     title: "Katalnaan manipud iti Dios",
     response: `### Naimbag a Damag ti Katalnaan manipud iti Kasuratan
 
@@ -763,10 +932,18 @@ Dagiti kangrunaan a bersikulo maipanggep iti katalnaan:
    > "Saluadamto iti naan-anay a katalnaan ti asinoman a ti panunotna ket naitalimeng kenka, agsipud ta agtalek kenka."
 
 **Pagnayaman ken Pagnasaran**:
-Ti katalnaan ket mangrugi no adda agtalek iti Apo iti tengnga ti dungsot ti biag. Babaen ti kararag, ti Espiritu Santo ti agbalin a sarikedked iti panunottayo.`
+Ti katalnaan ket mangrugi no adda agtalek iti Apo iti tengnga ti dungsot ti biag. Babaen ti kararag, ti Espiritu Santo ti agbalin a sarikedked iti panunottayo.`,
   },
   {
-    keywords: ["namnama", "ladingit", "naladingit", "maallilaw", "masanguanan", "future", "hope"],
+    keywords: [
+      "namnama",
+      "ladingit",
+      "naladingit",
+      "maallilaw",
+      "masanguanan",
+      "future",
+      "hope",
+    ],
     title: "Ti Namnama iti Tengnga ti Rigat",
     response: `### Ti Angkla ti Namnamatayo
 
@@ -779,10 +956,17 @@ Iti Biblia, ti namnama ket saan laeng a maysa a siglo, no di ket maysa a natibke
    > "Daytoy a namnama ket kasla angkla para iti kalaruatayo, natalged ken natibker..."
 
 3. **Jeremias 29:11**:
-   > "Ta ammok dagiti plano a saganadek para kadakayo, kuna ti Apo, dagiti plano ti kapia ken saan a ti pagdaksanyo, tapno maited kadakayo ti namnama iti masanguananyo."`
+   > "Ta ammok dagiti plano a saganadek para kadakayo, kuna ti Apo, dagiti plano ti kapia ken saan a ti pagdaksanyo, tapno maited kadakayo ti namnama iti masanguananyo."`,
   },
   {
-    keywords: ["melquisedec", "melchizedek", "padi", "salem", "genesis", "hebreo"],
+    keywords: [
+      "melquisedec",
+      "melchizedek",
+      "padi",
+      "salem",
+      "genesis",
+      "hebreo",
+    ],
     title: "Ti Misterio ni Melquisedec",
     response: `### Siasino ni Melquisedec?
 
@@ -800,10 +984,19 @@ Ni **Melquisedec** ket maysa kadagiti kamisterioan a persona iti Biblia. Isu ket
    > "Awan amana, awan inana, awan ginutubanna, awan rugi dagiti al-aldawna wenno patingga ti biagna, no di ket nailadawan a kas iti Anak ti Dios, isu ket agtalinaed a padi iti agnanayon."
 
 **Teolohikal a Kaipapanan**:
-Isu ket ladawan (type) ni Jesucristo. Pinagkaykisana ti akem ti *Ari* ken *Padi*. Kas kenkuana, ni Jesus ti umuna ken di agpatingga a Padi a nangyeg iti kappia iti Dios ken tao.`
+Isu ket ladawan (type) ni Jesucristo. Pinagkaykisana ti akem ti *Ari* ken *Padi*. Kas kenkuana, ni Jesus ti umuna ken di agpatingga a Padi a nangyeg iti kappia iti Dios ken tao.`,
   },
   {
-    keywords: ["sermon iti bantay", "sermon", "bantay", "mateo", "beatitudes", "nagasat", "asin", "silaw"],
+    keywords: [
+      "sermon iti bantay",
+      "sermon",
+      "bantay",
+      "mateo",
+      "beatitudes",
+      "nagasat",
+      "asin",
+      "silaw",
+    ],
     title: "Ti Sermon iti Bantay",
     response: `### Ti Linteg ti Pagarian ti Langit
 
@@ -820,7 +1013,7 @@ Ti **Sermon iti Bantay** (Mateo 5–7) ket isu ti kapipintasan ken kaatiddogan a
    > "Pasilawenyo koma ti silawyo iti sangoanan dagiti tattao, tapno makitada dagiti naimbag nga aramidleu ket idaydayawda ti Amayo a sadi langit."
 
 3. **Ti Baro a Bilin (Mateo 5:44)**:
-   > "Ayatenyo dagiti kabusor naway, ken ikararaganyo dagiti mangpaspasidut kadakayo..."`
+   > "Ayatenyo dagiti kabusor naway, ken ikararaganyo dagiti mangpaspasidut kadakayo..."`,
   },
   {
     keywords: ["ayat", "ayaten", "corinto", "bilin", "kaasi", "kappia", "love"],
@@ -836,7 +1029,7 @@ Ipatpamatay ti Biblia a ti Dios ket ayat (**Agape**), ken ti kangatuan nga awag 
    > "Ti saan nga agayat ket saan a makaammo iti Dios; ta ti **Dios ket ayat**."
 
 3. **Juan 13:34**:
-   > "Maysa a baro a bilin ti itedko kadakayo: Agkinnayatkayo. No kasano ti panagayatko kadakayo, kasta met a masapul nga agkinnayatkayo."`
+   > "Maysa a baro a bilin ti itedko kadakayo: Agkinnayatkayo. No kasano ti panagayatko kadakayo, kasta met a masapul nga agkinnayatkayo."`,
   },
   {
     keywords: ["pammati", "talek", "agtalek", "hebreo 11", "faith"],
@@ -852,10 +1045,17 @@ Segun iti Banal a Kasuratan, ti pammati ket isu ti natibker a panagtalek iti kai
    > "Ngem no awan ti pammati, saan a mabalin ti dumanon iti ayan ti Dios; ta ti dumanon kenkuana ket masapul a mamati nga adda Isu..."
 
 3. **Efeso 2:8**:
-   > "Ta babaen iti parabur ket naisalakan kayo gapu iti pammati; ket daytoy ket saan a gapu kadakayo, no di ket sagut ti Dios..."`
+   > "Ta babaen iti parabur ket naisalakan kayo gapu iti pammati; ket daytoy ket saan a gapu kadakayo, no di ket sagut ti Dios..."`,
   },
   {
-    keywords: ["hesus", "hesukristo", "ebanghelyo", "mangisalakan", "mesiyas", "jesus"],
+    keywords: [
+      "hesus",
+      "hesukristo",
+      "ebanghelyo",
+      "mangisalakan",
+      "mesiyas",
+      "jesus",
+    ],
     title: "Ti Kinasiasino ni Hesukristo",
     response: `### Ni Jesus a Mesiyas
 
@@ -865,7 +1065,7 @@ Iparang ti Biblia ni Jesus a kas ti naglasag a Sao ti Dios, ti Mesiyas nga inkar
    > "Iti nangrugian adda ti Sao, ken ti Sao adda iti Dios, ken ti Sao ket Dios... Ket ti Sao nagbalin a lasag ket nagtaeng kadatayo..."
 
 2. **Juan 14:6**:
-   > "Siak ti dalan, ti kinapudno, ken ti biag. Awan ti makapan iti Ama no di babaen kaniak."`
+   > "Siak ti dalan, ti kinapudno, ken ti biag. Awan ti makapan iti Ama no di babaen kaniak."`,
   },
   {
     keywords: ["ester", "esther", "mordecai", "haman", "purim", "reyna"],
@@ -880,7 +1080,7 @@ Ni **Ester** ket maysa nga ulila a Judio a nagbalin a Reyna ti Persia ket inusar
 2. **Ti Kinatured ni Ester**:
    > "No masapul a matayak, matayak."
 
-Babaen ti panagayuno ken pammati, inlatagna ti biagna iti sangoanan ti Ari ken sinalakanna dagiti padana a Judio.`
+Babaen ti panagayuno ken pammati, inlatagna ti biagna iti sangoanan ti Ari ken sinalakanna dagiti padana a Judio.`,
   },
   {
     keywords: ["salmo 23", "psalm 23", "pastor", "rebbek", "tanap"],
@@ -892,13 +1092,21 @@ Isurat ni Ricardo (Hadi a David) daytoy a Salmo kas panangipeksa iti naan-anay a
 1. **"Ti Apo ti pastorko; awanto ti kurangko."**
 2. **"Ipapaddanaak kadagiti berde a pastoan; idalannak iti abay ti tumanek a dandanum."**
 3. **"Uray no magnaak iti tanap ti riniwriw a patay, saanak a mabuteng iti dakes, ta sika addaka kaniak..."**
-4. **"Saganadam ti maysa a lamisaan iti sangoak dita tengnga dagiti kabusorko; ulesam ti ulok iti lina; umay-ayyas ti kopak."**`
-  }
+4. **"Saganadam ti maysa a lamisaan iti sangoak dita tengnga dagiti kabusorko; ulesam ti ulok iti lina; umay-ayyas ti kopak."**`,
+  },
 ];
 
 export const offlineBibleDatabaseHil: OfflineTopic[] = [
   {
-    keywords: ["paghidait", "katawhay", "kabalaka", "kakugmat", "kapayapaan", "shalo", "peace"],
+    keywords: [
+      "paghidait",
+      "katawhay",
+      "kabalaka",
+      "kakugmat",
+      "kapayapaan",
+      "shalo",
+      "peace",
+    ],
     title: "Sining sang Langitnon nga Paghidait",
     response: `### Ang Paghidait gikan sa Dios Suno sa Kasuratan
 
@@ -916,10 +1124,18 @@ Mga bersikulo sa tion sang kabalaka:
    > "Imo sia pagatagoan sa hampit nga paghidait, nga ang iya hunahuna nakasandig sa Imo; tungod kay nagasalig sia sa Imo."
 
 **Palandungon**:
-Agod maangkon ang katawhay, isalig ang kabalaka sa Amay. Paagi sa pangamuyo, ang Espiritu Santo magapalig-on sang imo hunahuna.`
+Agod maangkon ang katawhay, isalig ang kabalaka sa Amay. Paagi sa pangamuyo, ang Espiritu Santo magapalig-on sang imo hunahuna.`,
   },
   {
-    keywords: ["paglaum", "kasubo", "masulub-on", "ginaluyahan", "kabuason", "future", "hope"],
+    keywords: [
+      "paglaum",
+      "kasubo",
+      "masulub-on",
+      "ginaluyahan",
+      "kabuason",
+      "future",
+      "hope",
+    ],
     title: "Paglaum sa Tunga sang mga Pagtilaw",
     response: `### Ang Angkla sang Paglaum
 
@@ -932,10 +1148,17 @@ Sa kasuratan, ang paglaum indi lamang bation kundi isa ka kasiguraduhan nga naka
    > "Ini nga paglaum aton nga subong nga angkla sang kalag, masaligan kag malig-on..."
 
 3. **Jeremias 29:11**:
-   > "Kay nahibaluan ko ang mga plano ko para sa inyo, nagasiling ang Ginoo, mga plano sa kaayohan kag indi sa kalamidad, sa paghatag sa inyo sing maayo nga kabuason kag paglaum."`
+   > "Kay nahibaluan ko ang mga plano ko para sa inyo, nagasiling ang Ginoo, mga plano sa kaayohan kag indi sa kalamidad, sa paghatag sa inyo sing maayo nga kabuason kag paglaum."`,
   },
   {
-    keywords: ["melquisedec", "melchizedek", "pari", "salem", "genesis", "hebreo"],
+    keywords: [
+      "melquisedec",
+      "melchizedek",
+      "pari",
+      "salem",
+      "genesis",
+      "hebreo",
+    ],
     title: "Ang Misteryo ni Melquisedec",
     response: `### Sin-o si Melquisedec?
 
@@ -950,10 +1173,19 @@ Si **Melquisedec** isa sa pinakamisteryoso nga persona sa Biblia. Nagpakita sia 
    Pagbalik ni Abram (Abraham) gikan sa pagluwas kay Lot, ginsugata sia ni Melquisedec nga may dala nga tinapay kag bino, kag ginpaboran sia. Ginganhaan sia ni Abram sing ikapulo sang tanan.
 
 3. **Katungdanan sa Hebreo (Hebreo 7:1-3)**:
-   Siya nangin anino (type) ni Jesucristo, kay wala sia sing talaan sang ginikanan ukon katapusan sang kabuhi, subong sang Anak sang Dios, nagapabilin nga pari tubtob sa wala sing katapusan.`
+   Siya nangin anino (type) ni Jesucristo, kay wala sia sing talaan sang ginikanan ukon katapusan sang kabuhi, subong sang Anak sang Dios, nagapabilin nga pari tubtob sa wala sing katapusan.`,
   },
   {
-    keywords: ["sermon sa bukid", "sermon", "bukid", "mateo", "beatitudes", "bulahan", "asin", "suga"],
+    keywords: [
+      "sermon sa bukid",
+      "sermon",
+      "bukid",
+      "mateo",
+      "beatitudes",
+      "bulahan",
+      "asin",
+      "suga",
+    ],
     title: "Ang Sermon sa Bukid",
     response: `### Ang Konstitusyon sang Ginharian sang Dios
 
@@ -969,10 +1201,18 @@ Ang **Sermon sa Bukid** (Mateo kabitulo 5-7) amo ang pinakamalaba nga pagpanudlo
    > "Ipapawa ninyo ang inyo suga sa atubangan sang mga tawo, agod makit-an nila ang inyo maayo nga mga buhat kag maghimaya sila sa inyo Amay nga yara sa langit."
 
 3. **Paghigugma sa Kaaway (Mateo 5:44)**:
-   > "Higugmaa ninyo ang inyo mga kaaway kag ipangamuyo ang mga nagahingabot sa inyo."`
+   > "Higugmaa ninyo ang inyo mga kaaway kag ipangamuyo ang mga nagahingabot sa inyo."`,
   },
   {
-    keywords: ["gugma", "higugma", "corinto", "sugo", "kaluoy", "paghigugma", "love"],
+    keywords: [
+      "gugma",
+      "higugma",
+      "corinto",
+      "sugo",
+      "kaluoy",
+      "paghigugma",
+      "love",
+    ],
     title: "Ang Pinakadaku nga Sugo: Gugma",
     response: `### Ang Gugma Suno sa Kasuratan
 
@@ -985,7 +1225,7 @@ Ang Biblia nagasiling nga ang Dios gugma (**Agape**), kag ang pinakadaku nga sug
    > "Ang wala nagahigugma wala nagakilala sa Dios, kay ang **Dios gugma**."
 
 3. **Juan 13:34**:
-   > "Isa ka bag-o nga sugo ang ginahatag ko sa inyo: Maghigugmaanay kamo. Subong sang paghigugma ko sa inyo, maghigugmaanay man kamo."`
+   > "Isa ka bag-o nga sugo ang ginahatag ko sa inyo: Maghigugmaanay kamo. Subong sang paghigugma ko sa inyo, maghigugmaanay man kamo."`,
   },
   {
     keywords: ["pagtuo", "salig", "pagsalig", "hebreo 11", "faith"],
@@ -1001,10 +1241,17 @@ Suno sa Biblia, ang pagtuo amo ang pagsalig sa mga butang nga ginalauman naton, 
    > "Kag kon wala sing pagtuo, imposible ang magpahamuot sa Iya; kay ang nagapalapit sa Dios dapat magtuo nga Sia nagaluntad..."
 
 3. **Efeso 2:8**:
-   > "Kay tungod sa grasya naluwas kamo paagi sa pagtuo, kag ini indi gikan sa inyo kundi bugay sang Dios..."`
+   > "Kay tungod sa grasya naluwas kamo paagi sa pagtuo, kag ini indi gikan sa inyo kundi bugay sang Dios..."`,
   },
   {
-    keywords: ["hesus", "hesukristo", "ebanghelyo", "manluluwas", "mesiyas", "jesus"],
+    keywords: [
+      "hesus",
+      "hesukristo",
+      "ebanghelyo",
+      "manluluwas",
+      "mesiyas",
+      "jesus",
+    ],
     title: "Ang Pagkakilanlan ni Hesukristo",
     response: `### Si Hesus nga Mesiyas
 
@@ -1014,7 +1261,7 @@ Suno sa kasanagan sang Biblia, si Hesus amo ang Pulong sang Dios nga nangin tawo
    > "Sa ginsuguran amo ang Pulong, kag ang Pulong yara sa Dios, kag ang Pulong Dios... Kag ang Pulong nangin tawo kag nagpuyo sa tunga naton..."
 
 2. **Juan 14:6**:
-   > "Ako amo ang dalan, ang kamatuoran, kag ang kabuhi. Wala sing makakadto sa Amay kon indi paagi sa akon."`
+   > "Ako amo ang dalan, ang kamatuoran, kag ang kabuhi. Wala sing makakadto sa Amay kon indi paagi sa akon."`,
   },
   {
     keywords: ["ester", "esther", "mordecai", "haman", "purim", "reyna"],
@@ -1029,7 +1276,7 @@ Si **Ester** isa ka ilo nga Judio nga nangin Reyna sang Persia kag nagbuhat sing
 2. **Kaisog ni Ester**:
    > "Kon mapatay ako, mapatay ako."
 
-Uwas sa daku nga pagtilaw, ginpili ni Ester ang mag-ayuno kag mag-atubang sa Hari, kag ginluwas sang Dios ang mga Judio.`
+Uwas sa daku nga pagtilaw, ginpili ni Ester ang mag-ayuno kag mag-atubang sa Hari, kag ginluwas sang Dios ang mga Judio.`,
   },
   {
     keywords: ["salmo 23", "psalm 23", "pastor", "maayo nga pastor", "walog"],
@@ -1041,11 +1288,11 @@ Ginsulat ni Hari David—nga isa man ka pastor sang ubi-ubi sang lamharon pa sia
 1. **"Ang Ginoo amo ang akon pastor; wala ako sing pagpanguyapan."**
 2. **"Ginapakubot niya ako sa berde nga mga hilamonhan; ginatuytuyan niya ako sa ubay sang malinong nga mga tubig."**
 3. **"Bisan maglakat ako sa walog sang landong sang kamatayan, indi ako magkahadlok sa malain, kay nagaupod Ka sa akon; ang Imo bunal kag tungkod nagalipay sa akon."**
-4. **"Ginaamanan mo ako sing lamesa sa atubangan sang akon mga kaaway; ginahaplasan mo sing lana ang akon ulo; ang akon kalis nagaawas."**`
-  }
+4. **"Ginaamanan mo ako sing lamesa sa atubangan sang akon mga kaaway; ginahaplasan mo sing lana ang akon ulo; ang akon kalis nagaawas."**`,
+  },
 ];
 
-export function getOfflineAnswer(query: string, lang: "en" | "fil" | "ceb" | "bik" | "ilo" | "hil"): string {
+export function getOfflineAnswer(query: string, lang: LangType): string {
   const normalizedQuery = query.toLowerCase().trim();
   let db = offlineBibleDatabase;
   if (lang === "fil") {
@@ -1059,7 +1306,7 @@ export function getOfflineAnswer(query: string, lang: "en" | "fil" | "ceb" | "bi
   } else if (lang === "hil") {
     db = offlineBibleDatabaseHil;
   }
-  
+
   // Try to find matching keywords
   for (const topic of db) {
     const matched = topic.keywords.some((kw) => normalizedQuery.includes(kw));
@@ -1069,7 +1316,7 @@ export function getOfflineAnswer(query: string, lang: "en" | "fil" | "ceb" | "bi
   }
 
   if (lang === "fil") {
-    return `## bible-diary Offline Study Companion
+    return `## Bible Diary Offline Study Companion
 
 Kasalukuyan kang **offline** at nagbabasa mula sa aming lokal na database ng Banal na Kasulatan.
 
@@ -1085,7 +1332,7 @@ Hindi ko mahahanap ang partikular na sagot para sa iyong tanong na **"${query}"*
   }
 
   if (lang === "ceb") {
-    return `## bible-diary Offline Kaluwasan ug Pagtuon nga Kauban
+    return `## Bible Diary Offline Kaluwasan ug Pagtuon nga Kauban
 
 Kasalukuyan ka nga **offline** ug nagabasa gikan sa atong lokal nga database sa Balaang Kasulatan.
 
@@ -1101,7 +1348,7 @@ Wala nako makit-i ang piho nga tubag alang sa imong pangutana nga **"${query}"**
   }
 
   if (lang === "bik") {
-    return `## bible-diary Offline Kaluwasan asin Pag-aaral na Kaiba
+    return `## Bible Diary Offline Kaluwasan asin Pag-aaral na Kaiba
 
 Kasalukuyan kang **offline** asin nagbabasa gikan sa satong lokal na database kan Banal na Kasuratan.
 
@@ -1117,7 +1364,7 @@ Dai ko nahanap an pihong simbag para sa saimong hapot na **"${query}"** sa saton
   }
 
   if (lang === "ilo") {
-    return `## bible-diary Offline Pangsurot ken Pangkatulongan iti Pagkararagan
+    return `## Bible Diary Offline Pangsurot ken Pangkatulongan iti Pagkararagan
 
 Kasalukuyankay a **offline** ken agsarsarak manipud iti lokal a database ti Banal a Kasuratan.
 
@@ -1133,7 +1380,7 @@ Saan ko a nasarakan ti umisu a sungbat maipaay iti saludsodyo a **"${query}"** k
   }
 
   if (lang === "hil") {
-    return `## bible-diary Offline Katimbang sa Pagtuon
+    return `## Bible Diary Offline Katimbang sa Pagtuon
 
 Kasalukuyan ikaw nga **offline** kag nagabasa gikan sa aton lokal nga database sang Balaan nga Kasulatan.
 
@@ -1149,7 +1396,7 @@ Wala nako makit-an ang pat-od nga tubag para sa imo pamangkot nga **"${query}"**
   }
 
   // Generic fallback if we can't find direct answers
-  return `## bible-diary Offline Study Companion
+  return `## Bible Diary Offline Study Companion
 
 You are currently **offline**, reading from our local Scripture database. 
 

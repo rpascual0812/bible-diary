@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { 
-  Send, 
-  BookOpen, 
-  Sparkles, 
-  User, 
-  ChevronLeft, 
+import {
+  Send,
+  BookOpen,
+  Sparkles,
+  User,
+  ChevronLeft,
   ChevronDown,
   Languages,
   Menu,
@@ -18,13 +18,16 @@ import {
   Search,
   Plus,
   Trash2,
+  Pencil,
   Wifi,
   WifiOff,
   Globe,
   Sun,
   Moon,
   Heart,
-  Key
+  Key,
+  Download,
+  Upload,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { GeminiService, Message } from "./services/geminiService";
@@ -32,11 +35,27 @@ import { cn, formatTime } from "./lib/utils";
 import { getOfflineAnswer } from "./data/offlineBibleData";
 import { LanguageDropdown } from "./components/LanguageDropdown";
 import { BibleVerseReader } from "./components/BibleVerseReader";
+import { detectBibleVerse } from "./lib/bibleVerse";
+import { mergeImportedSessions } from "./lib/conversationBackup";
+import {
+  exportConversationsWeb,
+  readImportFileWeb,
+} from "./lib/conversationExportWeb";
 import { VoiceReader } from "./components/VoiceReader";
 import { DonationModal } from "./components/DonationModal";
 import { BAKED_GEMINI_API_KEY } from "./config/apiKey";
-import brandLogo from "./assets/images/living_word_logo_1780587127782.png";
-import { saveSessionsToIndexedDB, loadSessionsFromIndexedDB } from "./lib/indexedDbHelper";
+import type { LangType } from "./types";
+import {
+  translateMessages,
+  translateText,
+} from "./services/translationService";
+
+export type { LangType };
+import brandLogo from "./assets/images/brand-logo.png";
+import {
+  saveSessionsToIndexedDB,
+  loadSessionsFromIndexedDB,
+} from "./lib/indexedDbHelper";
 
 export interface ChatSession {
   id: string;
@@ -44,8 +63,6 @@ export interface ChatSession {
   messages: Message[];
   created_at: number;
 }
-
-export type LangType = "en" | "fil" | "ceb" | "bik" | "ilo" | "hil";
 
 const ALL_TOPICS = [
   "What does scripture say about peace?",
@@ -60,7 +77,7 @@ const ALL_TOPICS = [
   "What can we learn from the Parable of the Prodigal Son?",
   "Summarize the major covenant promises to Abraham.",
   "What are the fruits of the Spirit in Galatians 5?",
-  "Explain the significance of the Gospel story."
+  "Explain the significance of the Gospel story.",
 ];
 
 const ALL_TOPICS_FIL = [
@@ -76,7 +93,7 @@ const ALL_TOPICS_FIL = [
   "Ano ang matututunan natin sa Talinghaga ng Nawawalang Anak?",
   "Ibuod ang mga pangako ng kasunduan ng Diyos kay Abraham.",
   "Ano ang naging mga bunga ng Espiritu Santo sa Galacia 5?",
-  "Ipaliwanag ang kahalagahan ng Ebanghelyo ni Kristo Hesus."
+  "Ipaliwanag ang kahalagahan ng Ebanghelyo ni Kristo Hesus.",
 ];
 
 const ALL_TOPICS_CEB = [
@@ -92,7 +109,7 @@ const ALL_TOPICS_CEB = [
   "Unsay atong makat-unan sa Parabula sa Nawalang Anak?",
   "I-summarize ang mahinungdanong mga saad sa kasabotan ngadto kang Abraham.",
   "Unsa ang mga bunga sa Espiritu sa Galacia 5?",
-  "Ikapatin-aw ang kahulugan sa Ebanghelyo ni Hesukristo."
+  "Ikapatin-aw ang kahulugan sa Ebanghelyo ni Hesukristo.",
 ];
 
 const ALL_TOPICS_BIK = [
@@ -108,7 +125,7 @@ const ALL_TOPICS_BIK = [
   "Ano an satong manonodan sa Talinhaga kan Nawalang Aki?",
   "Ibuod an mga pangako kan tipan nin Dios ki Abraham.",
   "Ano an mga bunga kan Espiritu Santo sa Galacia 5?",
-  "Ipaliwanag an kahalagahan kan Ebanghelyo ni Cristo Hesus."
+  "Ipaliwanag an kahalagahan kan Ebanghelyo ni Cristo Hesus.",
 ];
 
 const ALL_TOPICS_ILO = [
@@ -124,7 +141,7 @@ const ALL_TOPICS_ILO = [
   "Ania ti masursurotayo iti Parabola ti No Nagawid nga Anak?",
   "Ibuod ti maipanggep kadagiti tulag ti Dios ken Abraham.",
   "Ania dagiti bunga ti Espiritu Santo iti Galacia 5?",
-  "Ipalawag ti pateg ti Ebanghelyo ni Jesucristo."
+  "Ipalawag ti pateg ti Ebanghelyo ni Jesucristo.",
 ];
 
 const ALL_TOPICS_HIL = [
@@ -140,7 +157,55 @@ const ALL_TOPICS_HIL = [
   "Ano ang aton matun-an sa Paraliko sang Nadula nga Anak?",
   "I-summarize ang mga mabinantayon nga saad sang Dios kay Abraham.",
   "Ano ang mga bunga sang Espiritu Santo sa Galacia 5?",
-  "Ipaathag ang importansya sang Ebanghelyo ni Hesukristo."
+  "Ipaathag ang importansya sang Ebanghelyo ni Hesukristo.",
+];
+
+const ALL_TOPICS_ES = [
+  "¿Qué dice la Escritura sobre la paz?",
+  "Cuéntame la historia de Melquisedec.",
+  "Explica el Sermón del Monte.",
+  "¿Qué dice la Biblia sobre la esperanza?",
+  "¿Quién fue la reina Ester y cómo salvó a su pueblo?",
+  "Explica el profundo significado del Salmo 23.",
+  "¿Qué enseña la Biblia sobre el amor sacrificial (Ágape)?",
+  "¿Cómo se explica la fe en Hebreos capítulo 11?",
+  "Cuéntame la historia de Elías en el monte Carmelo.",
+  "¿Qué podemos aprender de la Parábola del Hijo Pródigo?",
+  "Resume las principales promesas del pacto con Abraham.",
+  "¿Cuáles son los frutos del Espíritu en Gálatas 5?",
+  "Explica la importancia del Evangelio de Jesucristo.",
+];
+
+const ALL_TOPICS_LA = [
+  "Quid Scriptura de pace dicit?",
+  "Narra mihi historiam Melchisedec.",
+  "Explica Sermonem in Monte.",
+  "Quid Biblia de spe docet?",
+  "Quae fuit regina Esther et quomodo populum suum servavit?",
+  "Explica profundum sensum Psalmi 23.",
+  "Quid Biblia de amore sacrificiali (Agape) docet?",
+  "Quomodo fides in Epistula ad Hebraeos capite 11 explicatur?",
+  "Narra mihi de Elia in monte Carmelo.",
+  "Quid ex Parabola Filii Prodigi discimus?",
+  "Resume praecipua foederis promissa Abrahae.",
+  "Quae sunt fructus Spiritus in Epistula ad Galatas 5?",
+  "Explica momenti Evangelii Iesu Christi.",
+];
+
+const ALL_TOPICS_EL = [
+  "Τι λέει η Γραφή για την ειρήνη;",
+  "Διήγησέ μου την ιστορία του Μελχισεδέκ.",
+  "Εξήγησε το Όρος του Σερμόν.",
+  "Τι λέει η Βίβλος για την ελπίδα;",
+  "Ποια ήταν η βασίλισσα Εσθήρ και πώς έσωσε τον λαό της;",
+  "Εξήγησε το βαθύ νόημα του Ψαλμού 23.",
+  "Τι διδάσκει η Βίβλος για την θυσιαστική αγάπη (Αγάπη);",
+  "Πώς εξηγείται η πίστη στο Εβραίους κεφάλαιο 11;",
+  "Διήγησέ μου την ιστορία του Ηλία στο όρος Καρμήλ.",
+  "Τι μαθαίνουμε από την Παραβολή του Ασώτου;",
+  "Σύνοψε τις κύριες διαθηκικές υποσχέσεις στον Αβραάμ.",
+  "Ποια είναι τα καρποί του Πνεύματος στο Γαλάτες 5;",
+  "Εξήγησε τη σημασία του Ευαγγελίου του Χριστού.",
 ];
 
 const getUiTranslation = (key: string, lang: LangType) => {
@@ -151,7 +216,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Mga Archive sa Pagtuon",
       bik: "Mga Archive kan Pag-adal",
       ilo: "Pakasaritaan ti Pag-adal",
-      hil: "Mga Archive sang Pagtuon"
+      hil: "Mga Archive sang Pagtuon",
     },
     noChats: {
       en: "No previous study chats saved.",
@@ -159,7 +224,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Walay unang chat sa pagtuon.",
       bik: "Mayong nakaaging chat sa pag-adal.",
       ilo: "Awan ti nasarita a pag-adal.",
-      hil: "Wala sing nauna nga chat sa pagtuon."
+      hil: "Wala sing nauna nga chat sa pagtuon.",
     },
     newChat: {
       en: "New Study Chat",
@@ -167,7 +232,18 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Bag-ong Chat",
       bik: "Bagong Chat",
       ilo: "Baro a Chat",
-      hil: "Bag-o nga Chat"
+      hil: "Bag-o nga Chat",
+    },
+    giving: {
+      en: "Giving",
+      fil: "Handog",
+      ceb: "Halad",
+      bik: "Alay",
+      ilo: "Daton",
+      hil: "Halad",
+      es: "Ofrenda",
+      la: "Donatio",
+      el: "Δωρεά",
     },
     langLabel: {
       en: "Conversation Language",
@@ -175,7 +251,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Pinulongan sa Pagtuon",
       bik: "Wika nin Pag-adal",
       ilo: "Pagsasao ti Panag-adal",
-      hil: "Hambal sang Pagtuon"
+      hil: "Hambal sang Pagtuon",
     },
     demoTitle: {
       en: "Demo Testing",
@@ -183,7 +259,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Pagsulay sa Demo",
       bik: "Pagsubok sa Demo",
       ilo: "Padasen ti Demo",
-      hil: "Pagsulay sa Demo"
+      hil: "Pagsulay sa Demo",
     },
     simOffline: {
       en: "Simulate Offline Mode",
@@ -191,7 +267,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "I-simulate ang Offline",
       bik: "I-simulate an Offline",
       ilo: "I-simulate ti Offline",
-      hil: "I-simulate ang Offline"
+      hil: "I-simulate ang Offline",
     },
     connected: {
       en: "Connection OK",
@@ -199,7 +275,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Konektado",
       bik: "May Koneksyon",
       ilo: "Addaan Koneksion",
-      hil: "May Koneksyon"
+      hil: "May Koneksyon",
     },
     noNet: {
       en: "No Internet",
@@ -207,7 +283,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Walay Net",
       bik: "Mayong Net",
       ilo: "Awan ti Net",
-      hil: "Wala sing Net"
+      hil: "Wala sing Net",
     },
     currentChat: {
       en: "Current Chat:",
@@ -215,7 +291,150 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Pakisayran:",
       bik: "Paksa:",
       ilo: "Ad-adalem:",
-      hil: "Ginatinguhaan:"
+      hil: "Ginatinguhaan:",
+    },
+    renameChat: {
+      en: "Rename chat",
+      fil: "Palitan ang pangalan",
+      ceb: "Ilisi ang ngalan",
+      bik: "Palitan an pangaran",
+      ilo: "Sukatan ti nagan",
+      hil: "Ilisan ang ngalan",
+      es: "Renombrar chat",
+      la: "Rename colloquium",
+      el: "Μετονομασία συνομιλίας",
+    },
+    renamePlaceholder: {
+      en: "Chat title",
+      fil: "Pamagat ng chat",
+      ceb: "Ulohan sa chat",
+      bik: "Titulo kan chat",
+      ilo: "Titulo ti chat",
+      hil: "Titulo sang chat",
+      es: "Título del chat",
+      la: "Titulus colloquii",
+      el: "Τίτλος συνομιλίας",
+    },
+    save: {
+      en: "Save",
+      fil: "I-save",
+      ceb: "I-save",
+      bik: "I-save",
+      ilo: "Idulin",
+      hil: "I-save",
+      es: "Guardar",
+      la: "Serva",
+      el: "Αποθήκευση",
+    },
+    cancel: {
+      en: "Cancel",
+      fil: "Kanselahin",
+      ceb: "Kanselahon",
+      bik: "Kanselahon",
+      ilo: "Kanselaen",
+      hil: "Kanselahon",
+      es: "Cancelar",
+      la: "Cancella",
+      el: "Ακύρωση",
+    },
+    deleteChat: {
+      en: "Delete chat",
+      fil: "I-delete ang chat",
+      ceb: "I-delete ang chat",
+      bik: "I-delete an chat",
+      ilo: "I-delete ti chat",
+      hil: "I-delete ang chat",
+      es: "Eliminar chat",
+      la: "Dele colloquium",
+      el: "Διαγραφή συνομιλίας",
+    },
+    deleteChatConfirm: {
+      en: "This will permanently remove this study and all its messages. This cannot be undone.",
+      fil: "Permanenteng mabubura ang pag-aaral na ito at lahat ng mensahe. Hindi na ito maibabalik.",
+      ceb: "Permanenteng mawala ang pagtuon ug tanang mensahe. Dili na kini mabalik.",
+      bik: "Permanenteng mawawara an pag-adal asin gabos na mensahe. Dai na ini mababalik.",
+      ilo: "Permanentemente a maikkat daytoy a pagadalan ken amin a mensahe. Saanen a mabalik.",
+      hil: "Permanente nga mawala ini nga pagtuon kag tanan nga mensahe. Indi na ini mabalik.",
+      es: "Se eliminará permanentemente este estudio y todos sus mensajes. No se puede deshacer.",
+      la: "Hoc studium cum omnibus nuntiis perpetuo delebitur. Non revocari potest.",
+      el: "Αυτή η μελέτη και όλα τα μηνύματά της θα διαγραφούν οριστικά. Δεν μπορεί να αναιρεθεί.",
+    },
+    delete: {
+      en: "Delete",
+      fil: "I-delete",
+      ceb: "I-delete",
+      bik: "I-delete",
+      ilo: "I-delete",
+      hil: "I-delete",
+      es: "Eliminar",
+      la: "Dele",
+      el: "Διαγραφή",
+    },
+    exportConversations: {
+      en: "Export Conversations",
+      fil: "I-export ang mga Usapan",
+      ceb: "I-export ang mga Chat",
+      bik: "I-export an mga Chat",
+      ilo: "I-export dagiti Chat",
+      hil: "I-export ang mga Chat",
+      es: "Exportar conversaciones",
+      la: "Exporta colloquia",
+      el: "Εξαγωγή συνομιλιών",
+    },
+    importConversations: {
+      en: "Import Conversations",
+      fil: "I-import ang mga Usapan",
+      ceb: "I-import ang mga Chat",
+      bik: "I-import an mga Chat",
+      ilo: "I-import dagiti Chat",
+      hil: "I-import ang mga Chat",
+      es: "Importar conversaciones",
+      la: "Importa colloquia",
+      el: "Εισαγωγή συνομιλιών",
+    },
+    exportEmpty: {
+      en: "There are no conversations to export yet.",
+      fil: "Walang usapan na maaaring i-export.",
+      ceb: "Walay chat nga ma-export.",
+      bik: "Mayong chat na ma-export.",
+      ilo: "Awan chat a ma-export.",
+      hil: "Wala chat nga ma-export.",
+      es: "No hay conversaciones para exportar.",
+      la: "Nulla colloquia ad exportandum.",
+      el: "Δεν υπάρχουν συνομιλίες για εξαγωγή.",
+    },
+    exportError: {
+      en: "Could not export conversations. Please try again.",
+      fil: "Hindi ma-export ang mga usapan. Subukang muli.",
+      ceb: "Dili ma-export ang mga chat. Sulayi pag-usab.",
+      bik: "Dai ma-export an mga chat. Probaran liwat.",
+      ilo: "Saan a ma-export dagiti chat. Padasen manen.",
+      hil: "Indi ma-export ang mga chat. Sulayi liwat.",
+      es: "No se pudieron exportar las conversaciones.",
+      la: "Colloquia exportari non potuerunt.",
+      el: "Αποτυχία εξαγωγής συνομιλιών.",
+    },
+    importSuccess: {
+      en: "Imported {count} conversation(s).",
+      fil: "Na-import ang {count} usapan.",
+      ceb: "Na-import ang {count} ka chat.",
+      bik: "Na-import an {count} chat.",
+      ilo: "Na-import ti {count} a chat.",
+      hil: "Na-import ang {count} ka chat.",
+      es: "Se importaron {count} conversación(es).",
+      la: "{count} colloquia importata.",
+      el: "Εισήχθησαν {count} συνομιλίες.",
+    },
+    importError: {
+      en: "Could not import that file. Choose a valid Bible Diary export.",
+      fil: "Hindi ma-import ang file. Pumili ng wastong Bible Diary export.",
+      ceb: "Dili ma-import ang file. Pilia ang husto nga Bible Diary export.",
+      bik: "Dai ma-import an file. Pili an tama na Bible Diary export.",
+      ilo: "Saan a ma-import ti file. Agpili ti umno a Bible Diary export.",
+      hil: "Indi ma-import ang file. Pilia ang husto nga Bible Diary export.",
+      es: "No se pudo importar. Elige un archivo de exportación válido.",
+      la: "Importatio non potuit. Elige validum Bible Diary export.",
+      el: "Αποτυχία εισαγωγής. Επιλέξτε έγκυρο αρχείο Bible Diary.",
     },
     introGuide: {
       en: "Introduction Guide",
@@ -223,7 +442,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Panugod nga Giya",
       bik: "Gabay sa Panimula",
       ilo: "Pangyuna a Tarabay",
-      hil: "Panugod nga Giya"
+      hil: "Panugod nga Giya",
     },
     offlineActive: {
       en: "Offline Study Active",
@@ -231,7 +450,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Offline Study Aktibo",
       bik: "Offline Study Aktibo",
       ilo: "Offline a Pag-adal Aktibo",
-      hil: "Offline nga Pagtuon Aktibo"
+      hil: "Offline nga Pagtuon Aktibo",
     },
     onlineActive: {
       en: "Scribe Cloud Engaged",
@@ -239,7 +458,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Scribe Cloud Aktibo",
       bik: "Scribe Cloud Aktibo",
       ilo: "Scribe Cloud Aktibo",
-      hil: "Scribe Cloud Aktibo"
+      hil: "Scribe Cloud Aktibo",
     },
     closeStudy: {
       en: "Close Study",
@@ -247,23 +466,23 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Isira",
       bik: "Isara",
       ilo: "Irikep",
-      hil: "Siraon"
+      hil: "Siraon",
     },
     titleMain: {
-      en: "bible-diary, Unbound.",
+      en: "Bible Diary, Unbound.",
       fil: "Ang Buhay na Salita, Walang Hadlang.",
       ceb: "Ang Buhing Pulong, Walang Babag.",
       bik: "An Buhay na Tataramon, Daing Hadlang.",
       ilo: "Ti Sibibiag a Sao, Awan Patinggana.",
-      hil: "Ang Buhi nga Pulong, Wala sing Sablag."
+      hil: "Ang Buhi nga Pulong, Wala sing Sablag.",
     },
     welcomeDesc: {
-      en: "Welcome to bible-diary. Type any theology question or scripture phrase.",
-      fil: "Maligayang pagdating sa bible-diary. Magtanong ng anuman katanungang teolohikal ukol sa Banal na Kasulatan.",
-      ceb: "Maayong pag-abot sa bible-diary. Pangutana og bisan unsa nga teolohikal nga asoy mahitungod sa Balaang Kasulatan.",
-      bik: "Marhay na pag-abot sa bible-diary. Maghapot nin anuman na katanungang teolohikal manungod sa Banal na Kasuratan.",
-      ilo: "Naimbag a panagparangyo ditoy bible-diary. Agsaludsodkayo iti aniaman maipanggep iti teolohia ken Banal a Kasuratan.",
-      hil: "Maayo nga pag-abot sa bible-diary. Mamangkot sang bisan ano nga teolohikal nga asoy nahanungod sa Balaan nga Kasulatan."
+      en: "Welcome to Bible Diary. Type any theology question or scripture phrase.",
+      fil: "Maligayang pagdating sa Bible Diary. Magtanong ng anuman katanungang teolohikal ukol sa Banal na Kasulatan.",
+      ceb: "Maayong pag-abot sa Bible Diary. Pangutana og bisan unsa nga teolohikal nga asoy mahitungod sa Balaang Kasulatan.",
+      bik: "Marhay na pag-abot sa Bible Diary. Maghapot nin anuman na katanungang teolohikal manungod sa Banal na Kasuratan.",
+      ilo: "Naimbag a panagparangyo ditoy Bible Diary. Agsaludsodkayo iti aniaman maipanggep iti teolohia ken Banal a Kasuratan.",
+      hil: "Maayo nga pag-abot sa Bible Diary. Mamangkot sang bisan ano nga teolohikal nga asoy nahanungod sa Balaan nga Kasulatan.",
     },
     offlineBanner: {
       en: " Currently operating in fully cached Offline Mode. You can query anytime.",
@@ -271,7 +490,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: " Kasamtangang nagdagan sa hingpit nga naka-cache nga Offline Mode. Mahimo ka mangutana sa Cebuano.",
       bik: " Kasalukuyang nagpapadalagan sa ganap na naka-cache na Offline Mode. Pwede kang maghapot sa Bicolano ngunyan.",
       ilo: " Kasalukuyan nga agtartaray iti Offline Mode. Mabalin ti agdamag iti Ilocano ita.",
-      hil: " Kasalukuyan nga nagadalagan sa bug-os nga naka-cache nga Offline Mode. Pwede ka mamangkot sa Hiligaynon subong."
+      hil: " Kasalukuyan nga nagadalagan sa bug-os nga naka-cache nga Offline Mode. Pwede ka mamangkot sa Hiligaynon subong.",
     },
     queryGuide: {
       en: "Query Guide",
@@ -279,7 +498,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Giya sa Pangutana",
       bik: "Gabay sa Pagtatanong",
       ilo: "Tarabay ti Saludsod",
-      hil: "Giya sa Pamangkot"
+      hil: "Giya sa Pamangkot",
     },
     offlineSummaryTitle: {
       en: "Offline Capabilities Built-In",
@@ -287,7 +506,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Dunay Built-In Nga Offline Nga Katakus",
       bik: "May Built-In Na Offline Na Kakanyahan",
       ilo: "Built-In nga Offline a Kababalin",
-      hil: "May Built-In nga Offline nga Katakus"
+      hil: "May Built-In nga Offline nga Katakus",
     },
     offlineSummaryDesc: {
       en: "This app works fully offline, allowing you to read, search, and study the Bible anytime—even without an internet connection. It remembers your progress and includes a powerful Bible study assistant that can help you explore Bible characters, important topics such as faith, peace, and love, as well as well-known passages and teachings like Psalm 23 and the Sermon on the Mount. Whether you're at home, traveling, or in an area with limited connectivity, your Bible study tools remain available.",
@@ -295,7 +514,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Kini nga app hingpit nga naglihok offline, nga nagtugot kanimo sa pagbasa, pagpangita, ug pagtuon sa Bibliya bisan unsang orasa—bisan walay koneksyon sa internet. Nahinumdom kini sa imong pag-uswag ug naglakip sa usa ka gamhanang katabang sa pagtuon sa Bibliya nga makatabang kanimo sa pagsusi sa mga karakter sa Bibliya, importante nga mga paksa sama sa pagtuo, kalinaw, ug gugma, ingon man usab sa mga sikat nga mga bersikulo ug mga pagtulon-an sama sa Salmo 23 ug ang Sermon sa Bukid. Naa ka man sa balay, nagbiyahe, o sa usa ka lugar nga adunay limitado nga signal, ang imong mga gigamit sa pagtuon sa Bibliya magpabilin nga magamit.",
       bik: "Ining app na ini nagpapadalagan nin sunod sa offline, na nagtatao saimo nin kakayahan na magbasa, maghanap, asin mag-adal kan Biblia sa anuman na oras—dawa mayong koneksyon sa internet. Naroromdoman kaini an saimong progreso asin igwa nin sarong makapangyarihang katabang sa pag-adal kan Biblia na makakatabang saimong magsaliksik sa mga tauhan sa Biblia, mga importanteng tema arog kan pagtubod, katoninongan, asin pagkamoot, siring man an mga sikat na bersikulo asin katokdoan arog kan Salmo 23 asin an Sermon sa Bukid. Magin yaon ka sa harong, nagbibiyahe, o sa sarong lugar na may limitadong signal, an saimong mga kagamitan sa pag-adal magdadanay na magagamit.",
       ilo: "Daytoy nga app ket gaan-anay nga agandar offline, tapno makabasa, makasarak, ken makapag-adal kayo iti Biblia iti aniaman nga oras—uray awan ti koneksyon ti internet. Laglagipenna ti progresoyo ken addaan iti nabileg a katulongan iti panag-adal iti Biblia a makatulong kadakayo a mangsukisok kadagiti tattao iti Biblia, napapateg a topiko kas iti pammati, katalnaan, ken ayat, kasta met dagiti pungkasing a bersikulo ken sursuro kas iti Salmo 23 ken Sermon iti Bantay. Addakayo man iti balay, nagbiahe, wenno adda iti lugar a limitado ti signal-na, dagiti ramit ti panag-adalyo iti Biblia ket kankanayon a magun-od.",
-      hil: "Ini nga app de-kalidad nga nagatrabaho offline, nga nagatuyot sa imo sa pagbasa, pagpangita, kag pagtuon sang Biblia sa bisan ano nga oras—bisan wala sing koneksyon sa internet. Nadumduman sini ang imo pag-uswag kag nagaupod sang isa ka gamhanan nga katimbang sa pagtuon sang Biblia nga makatabang sa imo sa pag-usisa sang mga tinawo sa Biblia, importante nga mga tema subong sang pagtuo, paghidait, kag gugma, subong man ang mga kilala nga mga bersikulo kag mga pagtulun-an subong sang Salmo 23 kag ang Sermon sa Bukid. Yara ka man sa balay, nagabyahe, ukon sa isa ka lugar nga may limitado nga signal, ang imo mga galamiton sa pagtuon sang Biblia magapabilin nga magamit."
+      hil: "Ini nga app de-kalidad nga nagatrabaho offline, nga nagatuyot sa imo sa pagbasa, pagpangita, kag pagtuon sang Biblia sa bisan ano nga oras—bisan wala sing koneksyon sa internet. Nadumduman sini ang imo pag-uswag kag nagaupod sang isa ka gamhanan nga katimbang sa pagtuon sang Biblia nga makatabang sa imo sa pag-usisa sang mga tinawo sa Biblia, importante nga mga tema subong sang pagtuo, paghidait, kag gugma, subong man ang mga kilala nga mga bersikulo kag mga pagtulun-an subong sang Salmo 23 kag ang Sermon sa Bukid. Yara ka man sa balay, nagabyahe, ukon sa isa ka lugar nga may limitado nga signal, ang imo mga galamiton sa pagtuon sang Biblia magapabilin nga magamit.",
     },
     scribe: {
       en: "The Scribe",
@@ -303,7 +522,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Ang Tigsulat",
       bik: "An Parasurat",
       ilo: "Ti Manunurat",
-      hil: "Ang Manunulat"
+      hil: "Ang Manunulat",
     },
     consulting: {
       en: "Consulting the Scribes...",
@@ -311,7 +530,21 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Nagapakisayran sa mga Kasulatan...",
       bik: "Sumasangguni sa mga Kasuratan...",
       ilo: "Agal-aldaw iti Kasuratan...",
-      hil: "Nagapangita sa mga Kasulatan..."
+      hil: "Nagapangita sa mga Kasulatan...",
+      es: "Consultando las Escrituras...",
+      la: "Scripturas consuluntur...",
+      el: "Συμβουλεύομαι τις Γραφές...",
+    },
+    translating: {
+      en: "Translating conversation...",
+      fil: "Isinasalin ang usapan...",
+      ceb: "Gihubad ang panag-istorya...",
+      bik: "Tina-translate an pag-olay...",
+      ilo: "Agipatarus ti panagsalsalita...",
+      hil: "Ginatranslate ang pag-istoryahanay...",
+      es: "Traduciendo la conversación...",
+      la: "Colloquium vertitur...",
+      el: "Μετάφραση συνομιλίας...",
     },
     selectGuide: {
       en: "Select Preloaded Guide",
@@ -319,15 +552,15 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Pagpili og Giya sa Pagtuon",
       bik: "Pumili nin Gabay sa Pag-adal",
       ilo: "Pilien ti Naisagana a Tarabay",
-      hil: "Magpili sang Giya sa Pagtuon"
+      hil: "Magpili sang Giya sa Pagtuon",
     },
     placeholderOnline: {
-      en: "Search bible-diary...",
-      fil: "Magsaliksik sa buhay na Salita...",
-      ceb: "Pangitaa ang buhing Pulong...",
-      bik: "Magsaliksik sa buhay na Tataramon...",
-      ilo: "Sarakem ti sibibiag a Sao...",
-      hil: "Pangitaa ang buhi nga Pulong..."
+      en: "Search Bible Diary...",
+      fil: "Magsaliksik sa Bible Diary...",
+      ceb: "Pangitaa ang Bible Diary...",
+      bik: "Magsaliksik sa Bible Diary...",
+      ilo: "Sarakem ti Bible Diary...",
+      hil: "Pangitaa ang Bible Diary...",
     },
     placeholderOffline: {
       en: "Ask offline database (e.g. peace, hope, Jesus)...",
@@ -335,7 +568,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Pangutana sa offline database (kalinaw, paglaum, Hesus)...",
       bik: "Maghapot sa offline database (katoninongan, paglaom, Hesus)...",
       ilo: "Agsaludsod iti offline database (talna, namnama, Hesus)...",
-      hil: "Mamangkot sa offline database (paghidait, paglaum, Hesus)..."
+      hil: "Mamangkot sa offline database (paghidait, paglaum, Hesus)...",
     },
     sourceFooter: {
       en: "Scripture references based on King James & English Standard Versions",
@@ -343,7 +576,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Pakisayran: Ang Biblia (Cebuano), King James ug English Standard Versions",
       bik: "Sanggunian: Bicolano Biblia, King James asin English Standard Versions",
       ilo: "Pangsarigan: Ti Biblia (Ilocano), King James ken English Standard Versions",
-      hil: "Sadsaran: Ang Biblia (Hiligaynon), King James kag English Standard Versions"
+      hil: "Sadsaran: Ang Biblia (Hiligaynon), King James kag English Standard Versions",
     },
     bibleNavigation: {
       en: "Bible Study Navigation",
@@ -351,50 +584,10 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ceb: "Pagbasa sa Bibliya",
       bik: "Pagbasa kan Biblia",
       ilo: "Panagbasa ti Biblia",
-      hil: "Pagbasa sang Biblia"
-    }
+      hil: "Pagbasa sang Biblia",
+    },
   };
   return dicts[key]?.[lang] || dicts[key]?.["en"] || "";
-};
-
-export const detectBibleVerse = (text: string) => {
-  if (!text) return null;
-  
-  // Clean off common leading request phrases and command words
-  let cleanText = text.replace(/^(?:please|paki|pakisuyo|paki-suyo|can\s+you\s+)?(?:read|show|open|find|basahin|basaha|basahon|basaen|hanapin|ipakita|isulat)\s+(?:ang|an|ti|the\s+)?/i, "").trim();
-  
-  const regex = /\b((?:[1-3]\s*)?[A-Za-z]+(?:\s+[A-Za-z]+)*)\s+(\d+)[\s:]+(\d+)(?:\s*-\s*(\d+))?/;
-  const match = cleanText.match(regex);
-  if (!match) return null;
-
-  const book = match[1].trim();
-  const chapter = parseInt(match[2], 10);
-  const startVerse = parseInt(match[3], 10);
-  const endVerse = match[4] ? parseInt(match[4], 10) : undefined;
-
-  const exclusions = ["what", "how", "why", "who", "when", "where", "the", "and", "they", "this", "that", "there", "their"];
-  if (exclusions.includes(book.toLowerCase())) {
-    return null;
-  }
-
-  return { book, chapter, startVerse, endVerse };
-};
-
-export const getReadVerseLabel = (lang: LangType, verse: string) => {
-  switch (lang) {
-    case "fil":
-      return `Basahin ang ${verse}`;
-    case "ceb":
-      return `Basaha ang ${verse}`;
-    case "bik":
-      return `Basahon an ${verse}`;
-    case "ilo":
-      return `Basaen ti ${verse}`;
-    case "hil":
-      return `Basaha ang ${verse}`;
-    default:
-      return `Read ${verse}`;
-  }
 };
 
 export default function App() {
@@ -410,7 +603,10 @@ export default function App() {
   // Theme state ('dark' | 'light')
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     try {
-      return (localStorage.getItem("biblesphere_theme") as "dark" | "light") || "light";
+      return (
+        (localStorage.getItem("biblesphere_theme") as "dark" | "light") ||
+        "light"
+      );
     } catch (e) {
       return "light";
     }
@@ -438,7 +634,13 @@ export default function App() {
 
   // Support & Offering Box states
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
-  const [donationSuccessDetails, setDonationSuccessDetails] = useState<{ amount: string; purpose: string } | null>(null);
+  const [donationSuccessDetails, setDonationSuccessDetails] = useState<{
+    amount: string;
+    purpose: string;
+  } | null>(null);
+  const [renameSessionId, setRenameSessionId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
 
   // Read URL query parameters for successful donation callbacks
   useEffect(() => {
@@ -486,21 +688,27 @@ export default function App() {
       try {
         const storedDB = await loadSessionsFromIndexedDB();
         if (!active) return;
-        
+
         if (storedDB && storedDB.length > 0) {
           const storedLSString = localStorage.getItem("biblesphere_sessions");
-          const storedLS: ChatSession[] = storedLSString ? JSON.parse(storedLSString) : [];
-          
-          const hasMoreOrDifferent = storedLS.length !== storedDB.length || 
+          const storedLS: ChatSession[] = storedLSString
+            ? JSON.parse(storedLSString)
+            : [];
+
+          const hasMoreOrDifferent =
+            storedLS.length !== storedDB.length ||
             JSON.stringify(storedLS) !== JSON.stringify(storedDB);
-            
+
           if (hasMoreOrDifferent) {
             console.log("Syncing: Restored chats from IndexedDB backup.");
             setSessions(storedDB);
-            localStorage.setItem("biblesphere_sessions", JSON.stringify(storedDB));
-            
+            localStorage.setItem(
+              "biblesphere_sessions",
+              JSON.stringify(storedDB),
+            );
+
             const currentActive = localStorage.getItem("biblesphere_active_id");
-            const stillExists = storedDB.some(s => s.id === currentActive);
+            const stillExists = storedDB.some((s) => s.id === currentActive);
             if (!stillExists && storedDB.length > 0) {
               setActiveSessionId(storedDB[0].id);
               localStorage.setItem("biblesphere_active_id", storedDB[0].id);
@@ -513,7 +721,7 @@ export default function App() {
         console.error("Backup restoration error:", err);
       }
     };
-    
+
     restoreBackup();
     return () => {
       active = false;
@@ -522,7 +730,8 @@ export default function App() {
 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  
+  const [isTranslating, setIsTranslating] = useState(false);
+
   const [windowWidth, setWindowWidth] = useState(() => {
     try {
       return typeof window !== "undefined" ? window.innerWidth : 1024;
@@ -540,7 +749,7 @@ export default function App() {
   });
 
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  
+
   // Dynamic visual layout height state to avoid being cut off or behind the mobile keyboard
   const [viewportHeight, setViewportHeight] = useState<string>("100vh");
 
@@ -556,7 +765,9 @@ export default function App() {
     }
 
     const handleResize = () => {
-      const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      const height = window.visualViewport
+        ? window.visualViewport.height
+        : window.innerHeight;
       setViewportHeight(`${height}px`);
       setWindowWidth(window.innerWidth);
       window.scrollTo(0, 0);
@@ -564,7 +775,7 @@ export default function App() {
 
     window.visualViewport.addEventListener("resize", handleResize);
     window.visualViewport.addEventListener("scroll", handleResize);
-    
+
     handleResize();
 
     const timer = setTimeout(handleResize, 150);
@@ -575,9 +786,48 @@ export default function App() {
       window.visualViewport?.removeEventListener("scroll", handleResize);
     };
   }, []);
-  
+
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const lastScrollTop = useRef(0);
+  const dragStartScrollTop = useRef(0);
+  const isDraggingScroll = useRef(false);
+  const hideTriggeredThisDrag = useRef(false);
   const geminiRef = useRef<GeminiService | null>(null);
+
+  const SCROLL_DOWN_THRESHOLD = 24;
+
+  const handleScrollInteractionStart = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    isDraggingScroll.current = true;
+    dragStartScrollTop.current = container.scrollTop;
+    lastScrollTop.current = container.scrollTop;
+    hideTriggeredThisDrag.current = false;
+  }, []);
+
+  const handleScrollInteractionEnd = useCallback(() => {
+    isDraggingScroll.current = false;
+  }, []);
+
+  const handleChatScroll = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container || !isDraggingScroll.current) return;
+
+    const currentTop = container.scrollTop;
+    const scrolledDown = dragStartScrollTop.current - currentTop;
+    lastScrollTop.current = currentTop;
+
+    if (
+      document.activeElement === inputRef.current &&
+      scrolledDown > SCROLL_DOWN_THRESHOLD &&
+      !hideTriggeredThisDrag.current
+    ) {
+      hideTriggeredThisDrag.current = true;
+      inputRef.current?.blur();
+    }
+  }, []);
 
   // Monitor network status
   useEffect(() => {
@@ -596,8 +846,10 @@ export default function App() {
   // Initialize/Configure Gemini Service based on key/language preference
   useEffect(() => {
     const envKey = process.env.GEMINI_API_KEY;
-    const finalKey = (typeof BAKED_GEMINI_API_KEY !== "undefined" ? BAKED_GEMINI_API_KEY.trim() : "") || 
-                     (envKey ? envKey.trim() : "");
+    const finalKey =
+      (typeof BAKED_GEMINI_API_KEY !== "undefined"
+        ? BAKED_GEMINI_API_KEY.trim()
+        : "") || (envKey ? envKey.trim() : "");
     if (finalKey) {
       geminiRef.current = new GeminiService(finalKey, language);
     } else {
@@ -618,6 +870,12 @@ export default function App() {
       topicsList = ALL_TOPICS_ILO;
     } else if (language === "hil") {
       topicsList = ALL_TOPICS_HIL;
+    } else if (language === "es") {
+      topicsList = ALL_TOPICS_ES;
+    } else if (language === "la") {
+      topicsList = ALL_TOPICS_LA;
+    } else if (language === "el") {
+      topicsList = ALL_TOPICS_EL;
     }
     const shuffled = [...topicsList].sort(() => 0.5 - Math.random());
     setSuggestions(shuffled.slice(0, 4));
@@ -636,17 +894,54 @@ export default function App() {
   // Persists sessions to LocalStorage and IndexedDB
   const saveSessions = (updatedSessions: ChatSession[]) => {
     setSessions(updatedSessions);
-    localStorage.setItem("biblesphere_sessions", JSON.stringify(updatedSessions));
+    localStorage.setItem(
+      "biblesphere_sessions",
+      JSON.stringify(updatedSessions),
+    );
     saveSessionsToIndexedDB(updatedSessions).catch((e) => {
       console.error("Failsafe IndexedDB write failed:", e);
     });
   };
 
-  const handleLanguageChange = (newLang: LangType) => {
+  const handleLanguageChange = async (newLang: LangType) => {
+    if (newLang === language) return;
+
     setLanguage(newLang);
     localStorage.setItem("biblesphere_lang", newLang);
-    if (geminiRef.current) {
-      geminiRef.current.setLanguage(newLang);
+    geminiRef.current?.setLanguage(newLang);
+
+    const session = sessions.find((s) => s.id === activeSessionId);
+    if (!session?.messages.length) return;
+
+    const envKey = process.env.GEMINI_API_KEY;
+    const apiKey =
+      (typeof BAKED_GEMINI_API_KEY !== "undefined"
+        ? BAKED_GEMINI_API_KEY.trim()
+        : "") || (envKey ? envKey.trim() : "");
+    if (!apiKey || !isOnline || forceOffline) return;
+
+    setIsTranslating(true);
+    try {
+      const translatedMessages = await translateMessages(
+        apiKey,
+        session.messages,
+        newLang,
+      );
+      const translatedTitle = await translateText(
+        apiKey,
+        session.title,
+        newLang,
+      );
+      const updated = sessions.map((s) =>
+        s.id === activeSessionId
+          ? { ...s, title: translatedTitle, messages: translatedMessages }
+          : s,
+      );
+      saveSessions(updated);
+    } catch (error) {
+      console.error("Translation failed:", error);
+    } finally {
+      setIsTranslating(false);
     }
   };
 
@@ -655,11 +950,12 @@ export default function App() {
     const defaultTitle = getUiTranslation("newChat", language);
     const newSession: ChatSession = {
       id: newId,
-      title: initialMsgText 
-        ? (initialMsgText.substring(0, 32) + (initialMsgText.length > 32 ? "..." : "")) 
+      title: initialMsgText
+        ? initialMsgText.substring(0, 32) +
+          (initialMsgText.length > 32 ? "..." : "")
         : defaultTitle,
       messages: [],
-      created_at: Date.now()
+      created_at: Date.now(),
     };
     const updated = [newSession, ...sessions];
     saveSessions(updated);
@@ -668,8 +964,18 @@ export default function App() {
     return newId;
   };
 
-  const handleDeleteSession = (id: string, e: React.MouseEvent) => {
+  const openDeleteConfirm = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    setDeleteSessionId(id);
+  };
+
+  const closeDeleteConfirm = () => {
+    setDeleteSessionId(null);
+  };
+
+  const confirmDeleteSession = () => {
+    if (!deleteSessionId) return;
+    const id = deleteSessionId;
     const updated = sessions.filter((s) => s.id !== id);
     saveSessions(updated);
     if (activeSessionId === id) {
@@ -680,6 +986,74 @@ export default function App() {
       } else {
         localStorage.removeItem("biblesphere_active_id");
       }
+    }
+    setDeleteSessionId(null);
+  };
+
+  const openRenameSession = (sessionId: string) => {
+    const session = sessions.find((s) => s.id === sessionId);
+    if (!session) return;
+    setRenameSessionId(sessionId);
+    setRenameDraft(session.title);
+  };
+
+  const handleRenameSession = () => {
+    if (!renameSessionId) return;
+    const trimmed = renameDraft.trim();
+    if (!trimmed) return;
+    const updated = sessions.map((s) =>
+      s.id === renameSessionId ? { ...s, title: trimmed } : s,
+    );
+    saveSessions(updated);
+    setRenameSessionId(null);
+    setRenameDraft("");
+  };
+
+  const handleExportConversations = async () => {
+    const result = await exportConversationsWeb(sessions, activeSessionId);
+    if (result.cancelled) return;
+    if (result.error === "empty") {
+      window.alert(getUiTranslation("exportEmpty", language));
+      return;
+    }
+    if (result.error) {
+      window.alert(getUiTranslation("exportError", language));
+    }
+  };
+
+  const handleImportConversations = () => {
+    importFileRef.current?.click();
+  };
+
+  const handleImportFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    try {
+      const backup = await readImportFileWeb(file);
+      const {
+        sessions: merged,
+        activeSessionId: nextActive,
+        importedCount,
+      } = mergeImportedSessions(sessions, backup.sessions);
+      saveSessions(merged);
+      setActiveSessionId(nextActive);
+      if (nextActive) {
+        localStorage.setItem("biblesphere_active_id", nextActive);
+      } else {
+        localStorage.removeItem("biblesphere_active_id");
+      }
+      window.alert(
+        getUiTranslation("importSuccess", language).replace(
+          "{count}",
+          String(importedCount),
+        ),
+      );
+    } catch {
+      window.alert(getUiTranslation("importError", language));
     }
   };
 
@@ -698,15 +1072,17 @@ export default function App() {
       const newId = "session_" + Date.now();
       currentSession = {
         id: newId,
-        title: textToSend.substring(0, 32) + (textToSend.length > 32 ? "..." : ""),
+        title:
+          textToSend.substring(0, 32) + (textToSend.length > 32 ? "..." : ""),
         messages: [],
-        created_at: Date.now()
+        created_at: Date.now(),
       };
       sList = [currentSession, ...sList];
       sessionId = newId;
     } else if (currentSession.messages.length === 0) {
       // Set name from first query
-      currentSession.title = textToSend.substring(0, 32) + (textToSend.length > 32 ? "..." : "");
+      currentSession.title =
+        textToSend.substring(0, 32) + (textToSend.length > 32 ? "..." : "");
     }
 
     const userMsg: Message = {
@@ -766,17 +1142,29 @@ export default function App() {
     } catch (err) {
       let errorText = "";
       if (language === "fil") {
-        errorText = "Hindi ko makuha ang sagot mula sa buhay na mapagkukunan. Nagbabalik ng offline na kaalaman fallback:\n\n" + getOfflineAnswer(textToSend, language);
+        errorText =
+          "Hindi ko makuha ang sagot mula sa buhay na mapagkukunan. Nagbabalik ng offline na kaalaman fallback:\n\n" +
+          getOfflineAnswer(textToSend, language);
       } else if (language === "ceb") {
-        errorText = "Dili nako makuha ang tubag gikan sa buhi nga tuburan. Nagabalik sa offline nga kahibalo fallback:\n\n" + getOfflineAnswer(textToSend, language);
+        errorText =
+          "Dili nako makuha ang tubag gikan sa buhi nga tuburan. Nagabalik sa offline nga kahibalo fallback:\n\n" +
+          getOfflineAnswer(textToSend, language);
       } else if (language === "bik") {
-        errorText = "Dai ko makuha an simbag gikan sa buhay na mapagkukunan. Nagbabalik sa offline na kaalaman fallback:\n\n" + getOfflineAnswer(textToSend, language);
+        errorText =
+          "Dai ko makuha an simbag gikan sa buhay na mapagkukunan. Nagbabalik sa offline na kaalaman fallback:\n\n" +
+          getOfflineAnswer(textToSend, language);
       } else if (language === "ilo") {
-        errorText = "Saan a magun-od ti sungbat manipud iti sibibiag a gubuayan. Agsubli iti offline a napanunotan:\n\n" + getOfflineAnswer(textToSend, language);
+        errorText =
+          "Saan a magun-od ti sungbat manipud iti sibibiag a gubuayan. Agsubli iti offline a napanunotan:\n\n" +
+          getOfflineAnswer(textToSend, language);
       } else if (language === "hil") {
-        errorText = "Indi ko makuha ang sabat gikan sa buhi nga ginahalinan. Nagabalik sa offline nga sabat:\n\n" + getOfflineAnswer(textToSend, language);
+        errorText =
+          "Indi ko makuha ang sabat gikan sa buhi nga ginahalinan. Nagabalik sa offline nga sabat:\n\n" +
+          getOfflineAnswer(textToSend, language);
       } else {
-        errorText = "I was unable to retrieve a response from the living source. Returning offline knowledge fallback:\n\n" + getOfflineAnswer(textToSend, language);
+        errorText =
+          "I was unable to retrieve a response from the living source. Returning offline knowledge fallback:\n\n" +
+          getOfflineAnswer(textToSend, language);
       }
 
       const errMsg: Message = {
@@ -784,7 +1172,7 @@ export default function App() {
         text: errorText,
         timestamp: Date.now(),
       };
-      
+
       const freshList = sList.map((s) => {
         if (s.id === sessionId) {
           return {
@@ -801,11 +1189,13 @@ export default function App() {
   };
 
   return (
-    <div 
+    <div
       style={{ height: viewportHeight }}
       className={cn(
-        "flex font-sans overflow-hidden transition-colors duration-300 w-full", 
-        theme === "dark" ? "bg-midnight text-[#E0E0E0]" : "bg-[#F4F5F7] text-slate-800"
+        "flex font-sans overflow-hidden transition-colors duration-300 w-full",
+        theme === "dark"
+          ? "bg-midnight text-[#E0E0E0]"
+          : "bg-[#F4F5F7] text-slate-800",
       )}
     >
       <AnimatePresence>
@@ -816,7 +1206,7 @@ export default function App() {
             transition={{ duration: 0.5, ease: "easeInOut" }}
             className={cn(
               "fixed inset-0 z-[9999] flex flex-col items-center justify-center transition-colors duration-500",
-              theme === "dark" ? "bg-[#07080a]" : "bg-[#F4F5F7]"
+              theme === "dark" ? "bg-[#07080a]" : "bg-[#F4F5F7]",
             )}
           >
             <motion.div
@@ -829,7 +1219,7 @@ export default function App() {
                 <div className="absolute -inset-2 rounded-full bg-gradient-to-tr from-[#D4AF37]/30 to-[#8E6E2E]/30 blur-2xl opacity-75"></div>
                 <img
                   src={brandLogo}
-                  alt="bible-diary Logo"
+                  alt="Bible Diary Logo"
                   className="relative w-40 h-40 rounded-full object-cover shadow-2xl border border-amber-500/20 select-none"
                   referrerPolicy="no-referrer"
                 />
@@ -842,16 +1232,20 @@ export default function App() {
                 className="space-y-2"
               >
                 <h1 className="text-3xl md:text-4xl font-display font-light tracking-wider">
-                  <span className="gold-gradient font-semibold">bible-diary</span>
+                  <span className="gold-gradient font-semibold">
+                    Bible Diary
+                  </span>
                 </h1>
-                <p className={cn(
-                  "text-xs uppercase tracking-widest font-sans font-light",
-                  theme === "dark" ? "text-slate-500" : "text-slate-400"
-                )}>
+                <p
+                  className={cn(
+                    "text-xs uppercase tracking-widest font-sans font-light",
+                    theme === "dark" ? "text-slate-500" : "text-slate-400",
+                  )}
+                >
                   Bible Companion & Study Guide
                 </p>
               </motion.div>
-              
+
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -859,10 +1253,12 @@ export default function App() {
                 className="flex items-center gap-1.5 mt-8"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-gold-500 animate-ping"></span>
-                <span className={cn(
-                  "text-[10px] font-mono tracking-widest uppercase",
-                  theme === "dark" ? "text-slate-600" : "text-slate-500"
-                )}>
+                <span
+                  className={cn(
+                    "text-[10px] font-mono tracking-widest uppercase",
+                    theme === "dark" ? "text-slate-600" : "text-slate-500",
+                  )}
+                >
                   Opening Scriptures...
                 </span>
               </motion.div>
@@ -872,46 +1268,57 @@ export default function App() {
       </AnimatePresence>
 
       {/* Background Decorative Glows */}
-      <div className={cn(
-        "fixed top-1/4 left-1/2 -translate-x-1/2 glow-background -z-0 pointer-events-none transition-opacity duration-300",
-        theme === "dark" ? "opacity-45" : "opacity-10 bg-yellow-500/5"
-      )} />
+      <div
+        className={cn(
+          "fixed top-1/4 left-1/2 -translate-x-1/2 glow-background -z-0 pointer-events-none transition-opacity duration-300",
+          theme === "dark" ? "opacity-45" : "opacity-10 bg-yellow-500/5",
+        )}
+      />
 
       {/* Sidebar Navigation */}
       <motion.aside
         initial={false}
-        animate={{ 
+        animate={{
           x: isSidebarOpen ? 0 : -300,
-          width: isSidebarOpen ? "280px" : "0px"
+          width: isSidebarOpen ? "280px" : "0px",
         }}
         className={cn(
           "fixed lg:relative z-50 h-full flex flex-col transition-all duration-300 shadow-2xl border-r",
-          theme === "dark" ? "bg-[#07080a] border-white/10" : "bg-white border-slate-200/80",
-          "lg:translate-x-0 lg:w-72"
+          theme === "dark"
+            ? "bg-[#07080a] border-white/10"
+            : "bg-white border-slate-200/80",
+          "lg:translate-x-0 lg:w-72",
         )}
       >
         {/* Nav head */}
-        <div className={cn(
-          "p-6 flex items-center justify-between border-b",
-          theme === "dark" ? "border-white/5" : "border-slate-100"
-        )}>
+        <div
+          className={cn(
+            "p-6 flex items-center justify-between border-b",
+            theme === "dark" ? "border-white/5" : "border-slate-100",
+          )}
+        >
           <div className="flex items-center gap-3">
             <img
               src={brandLogo}
-              alt="bible-diary Logo"
+              alt="Bible Diary Logo"
               className="w-8 h-8 rounded-lg object-cover shadow-md shadow-yellow-500/10 border border-amber-500/20 select-none animate-fade-in"
               referrerPolicy="no-referrer"
             />
-            <span className={cn(
-              "text-lg font-semibold tracking-tight",
-              theme === "dark" ? "text-white" : "text-slate-900"
-            )}>The Living <span className="text-gold-500 font-light font-sans">Word</span></span>
+            <span
+              className={cn(
+                "text-lg font-semibold tracking-tight",
+                theme === "dark" ? "text-white" : "text-slate-900",
+              )}
+            >
+              The Living{" "}
+              <span className="text-gold-500 font-light font-sans">Word</span>
+            </span>
           </div>
-          <button 
+          <button
             onClick={() => setIsSidebarOpen(false)}
             className={cn(
               "p-2 rounded-lg text-slate-400 transition-colors",
-              theme === "dark" ? "hover:bg-white/5" : "hover:bg-slate-100"
+              theme === "dark" ? "hover:bg-white/5" : "hover:bg-slate-100",
             )}
           >
             <ChevronLeft className="w-5 h-5" />
@@ -920,7 +1327,7 @@ export default function App() {
 
         {/* Action Button Stack */}
         <div className="p-4 space-y-2">
-          <button 
+          <button
             onClick={() => {
               handleCreateSession();
               if (windowWidth < 1024) {
@@ -931,14 +1338,14 @@ export default function App() {
               "w-full flex items-center justify-center gap-3 px-4 py-3 rounded-full transition-all text-xs font-semibold uppercase tracking-wider shadow-md border cursor-pointer",
               theme === "dark"
                 ? "bg-white/5 hover:bg-white/10 border-white/10 text-white hover:border-gold-500/50"
-                : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900 hover:border-gold-500/50"
+                : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900 hover:border-gold-500/50",
             )}
           >
             <Plus className="w-4 h-4 text-gold-500" />
             <span>{getUiTranslation("newChat", language)}</span>
           </button>
 
-          <button 
+          <button
             onClick={() => {
               setIsDonationModalOpen(true);
               if (windowWidth < 1024) {
@@ -949,13 +1356,11 @@ export default function App() {
               "w-full flex items-center justify-center gap-3 px-4 py-3 rounded-full transition-all text-xs font-semibold uppercase tracking-wider shadow-sm border cursor-pointer",
               theme === "dark"
                 ? "bg-amber-500/10 hover:bg-amber-500/15 border-amber-500/20 text-gold-400 hover:text-gold-300"
-                : "bg-amber-500/5 hover:bg-amber-500/10 border-amber-200 text-amber-700 hover:text-amber-800"
+                : "bg-amber-500/5 hover:bg-amber-500/10 border-amber-200 text-amber-700 hover:text-amber-800",
             )}
           >
             <Heart className="w-4 h-4 text-rose-500 fill-rose-500 animate-pulse" />
-            <span>
-              {language === "fil" ? "Dakong Handugan" : language === "ceb" ? "Dakong Halad" : "Giving Sanctuary"}
-            </span>
+            <span>{getUiTranslation("giving", language)}</span>
           </button>
         </div>
 
@@ -963,17 +1368,28 @@ export default function App() {
         <div className="flex-1 overflow-y-auto px-2 space-y-1 py-2">
           <div className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-2 flex items-center justify-between">
             <span>{getUiTranslation("studyArchives", language)}</span>
-            <span className={cn(
-              "font-mono text-[9px]",
-              theme === "dark" ? "text-slate-500" : "text-slate-400"
-            )}>{sessions.length} {language === "fil" ? "session" : language === "ceb" ? "session" : "sessions"}</span>
+            <span
+              className={cn(
+                "font-mono text-[9px]",
+                theme === "dark" ? "text-slate-500" : "text-slate-400",
+              )}
+            >
+              {sessions.length}{" "}
+              {language === "fil"
+                ? "session"
+                : language === "ceb"
+                  ? "session"
+                  : "sessions"}
+            </span>
           </div>
 
           {sessions.length === 0 ? (
-            <div className={cn(
-              "px-4 py-6 text-xs font-light italic text-center",
-              theme === "dark" ? "text-slate-600" : "text-slate-400"
-            )}>
+            <div
+              className={cn(
+                "px-4 py-6 text-xs font-light italic text-center",
+                theme === "dark" ? "text-slate-600" : "text-slate-400",
+              )}
+            >
               {getUiTranslation("noChats", language)}
             </div>
           ) : (
@@ -992,42 +1408,114 @@ export default function App() {
                     }}
                     className={cn(
                       "group w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-left transition-all cursor-pointer border border-transparent",
-                      isActive 
-                        ? (theme === "dark" ? "bg-white/[0.08] text-white border-l-2 border-l-gold-500" : "bg-slate-100 text-slate-900 border-l-2 border-l-gold-500 font-semibold shadow-sm") 
-                        : (theme === "dark" ? "text-slate-400 hover:bg-white/5 hover:text-white" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")
+                      isActive
+                        ? theme === "dark"
+                          ? "bg-white/[0.08] text-white border-l-2 border-l-gold-500"
+                          : "bg-slate-100 text-slate-900 border-l-2 border-l-gold-500 font-semibold shadow-sm"
+                        : theme === "dark"
+                          ? "text-slate-400 hover:bg-white/5 hover:text-white"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                     )}
                   >
                     <div className="flex items-center gap-2.5 min-w-0 pr-1">
-                      <MessageSquare className={cn(
-                        "w-4 h-4 flex-shrink-0",
-                        isActive ? "text-gold-500" : (theme === "dark" ? "text-slate-500" : "text-slate-400")
-                      )} />
-                      <span className="text-xs truncate font-light">{sess.title}</span>
+                      <MessageSquare
+                        className={cn(
+                          "w-4 h-4 flex-shrink-0",
+                          isActive
+                            ? "text-gold-500"
+                            : theme === "dark"
+                              ? "text-slate-500"
+                              : "text-slate-400",
+                        )}
+                      />
+                      <span className="text-xs truncate font-light">
+                        {sess.title}
+                      </span>
                     </div>
-                    
-                    <button
-                      onClick={(e) => handleDeleteSession(sess.id, e)}
-                      className={cn(
-                        "opacity-0 group-hover:opacity-100 p-1 rounded hover:text-red-400 transition-all flex-shrink-0",
-                        theme === "dark" ? "hover:bg-white/10 text-slate-500" : "hover:bg-slate-200/80 text-slate-400"
-                      )}
-                      title={language === "ceb" ? "I-delete kini nga Study Chat" : language === "fil" ? "I-delete itong Study Chat" : language === "bik" ? "I-delete ining Study Chat" : "Prune this Chat"}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openRenameSession(sess.id);
+                        }}
+                        className={cn(
+                          "opacity-0 group-hover:opacity-100 p-1 rounded hover:text-gold-400 transition-all",
+                          theme === "dark"
+                            ? "hover:bg-white/10 text-slate-500"
+                            : "hover:bg-slate-200/80 text-slate-400",
+                        )}
+                        title={getUiTranslation("renameChat", language)}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => openDeleteConfirm(sess.id, e)}
+                        className={cn(
+                          "opacity-0 group-hover:opacity-100 p-1 rounded hover:text-red-400 transition-all",
+                          theme === "dark"
+                            ? "hover:bg-white/10 text-slate-500"
+                            : "hover:bg-slate-200/80 text-slate-400",
+                        )}
+                        title={getUiTranslation("deleteChat", language)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
             </div>
           )}
+
+          <div className="px-2 pt-4 pb-2">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  void handleExportConversations();
+                }}
+                className={cn(
+                  "flex items-center justify-center gap-2 px-3 py-3 rounded-full transition-all text-[10px] font-semibold uppercase tracking-wider border cursor-pointer",
+                  theme === "dark"
+                    ? "bg-white/5 hover:bg-white/10 border-white/10 text-slate-300"
+                    : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700",
+                )}
+              >
+                <Download className="w-3.5 h-3.5 text-gold-500" />
+                <span>{getUiTranslation("exportConversations", language)}</span>
+              </button>
+              <button
+                onClick={handleImportConversations}
+                className={cn(
+                  "flex items-center justify-center gap-2 px-3 py-3 rounded-full transition-all text-[10px] font-semibold uppercase tracking-wider border cursor-pointer",
+                  theme === "dark"
+                    ? "bg-white/5 hover:bg-white/10 border-white/10 text-slate-300"
+                    : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700",
+                )}
+              >
+                <Upload className="w-3.5 h-3.5 text-gold-500" />
+                <span>{getUiTranslation("importConversations", language)}</span>
+              </button>
+            </div>
+            <input
+              ref={importFileRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={handleImportFileChange}
+            />
+          </div>
         </div>
 
         {/* Live offline simulator control & preferences */}
-        <div className={cn(
-          "p-4 border-t space-y-3",
-          theme === "dark" ? "border-white/5 bg-[#050608]/80" : "border-slate-100 bg-[#FAFAFB]"
-        )}>
-          
+        <div
+          className={cn(
+            "p-4 border-t space-y-3",
+            theme === "dark"
+              ? "border-white/5 bg-[#050608]/80"
+              : "border-slate-100 bg-[#FAFAFB]",
+          )}
+        >
           {/* Quick Language switcher widget inside sidebar */}
           <LanguageDropdown
             currentLang={language}
@@ -1045,9 +1533,11 @@ export default function App() {
               "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border transition-all cursor-pointer shadow-sm text-xs font-medium",
               theme === "dark"
                 ? "bg-white/[0.03] border-white/5 hover:bg-white/10 active:bg-white/15 text-slate-300 hover:text-white"
-                : "bg-white border-slate-200/60 hover:bg-slate-50 active:bg-slate-100 text-slate-700 hover:text-slate-900"
+                : "bg-white border-slate-200/60 hover:bg-slate-50 active:bg-slate-100 text-slate-700 hover:text-slate-900",
             )}
-            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            title={
+              theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"
+            }
           >
             <div className="flex items-center gap-2">
               {theme === "dark" ? (
@@ -1056,26 +1546,34 @@ export default function App() {
                 <Moon className="w-4 h-4 text-slate-500" />
               )}
               <span>
-                {language === "fil" ? "Tema ng App" : language === "ceb" ? "Tema sa App" : "App Theme"}
+                {language === "fil"
+                  ? "Tema ng App"
+                  : language === "ceb"
+                    ? "Tema sa App"
+                    : "App Theme"}
               </span>
             </div>
-            <span className={cn(
-              "text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase",
-              theme === "dark" ? "bg-amber-500/10 text-amber-400" : "bg-slate-100 text-slate-600 border border-slate-200/60"
-            )}>
+            <span
+              className={cn(
+                "text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase",
+                theme === "dark"
+                  ? "bg-amber-500/10 text-amber-400"
+                  : "bg-slate-100 text-slate-600 border border-slate-200/60",
+              )}
+            >
               {theme === "dark" ? "Dark" : "Light"}
             </span>
           </button>
 
-
-
-          <div className={cn(
-            "flex items-center justify-between text-xs px-2 pt-1 font-light",
-            theme === "dark" ? "text-slate-500" : "text-slate-400"
-          )}>
+          <div
+            className={cn(
+              "flex items-center justify-between text-xs px-2 pt-1 font-light",
+              theme === "dark" ? "text-slate-500" : "text-slate-400",
+            )}
+          >
             <span className="flex items-center gap-1">
               <Globe className="w-3.5 h-3.5" />
-              {isOnline 
+              {isOnline
                 ? getUiTranslation("connected", language)
                 : getUiTranslation("noNet", language)}
             </span>
@@ -1086,36 +1584,47 @@ export default function App() {
 
       {/* Main Study Desk */}
       <main className="flex-1 flex flex-col relative min-w-0 z-10">
-        
         {/* Header toolbar */}
-        <header className={cn(
-          "h-16 flex items-center justify-between px-4 lg:px-8 border-b backdrop-blur-md sticky top-0 z-30 transition-colors duration-300",
-          theme === "dark" ? "border-white/5 bg-[#0B0C10]/60" : "border-slate-200/60 bg-[#FAFAFB]/80"
-        )}>
+        <header
+          className={cn(
+            "h-16 flex items-center justify-between px-4 lg:px-8 border-b backdrop-blur-md sticky top-0 z-30 transition-colors duration-300",
+            theme === "dark"
+              ? "border-white/5 bg-[#0B0C10]/60"
+              : "border-slate-200/60 bg-[#FAFAFB]/80",
+          )}
+        >
           <div className="flex items-center gap-4">
             {!isSidebarOpen && (
-              <button 
+              <button
                 onClick={() => setIsSidebarOpen(true)}
                 className={cn(
                   "p-2 rounded-full transition-colors",
-                  theme === "dark" ? "hover:bg-white/5 text-white" : "hover:bg-slate-200 text-slate-800"
+                  theme === "dark"
+                    ? "hover:bg-white/5 text-white"
+                    : "hover:bg-slate-200 text-slate-800",
                 )}
               >
                 <Menu className="w-5 h-5 animate-pulse" />
               </button>
             )}
-            <div className="flex items-center gap-2">
-              <span className={cn(
-                "text-xs uppercase tracking-[0.25em] font-medium",
-                theme === "dark" ? "text-white/50" : "text-slate-500"
-              )}>
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className={cn(
+                  "text-xs uppercase tracking-[0.25em] font-medium shrink-0",
+                  theme === "dark" ? "text-white/50" : "text-slate-500",
+                )}
+              >
                 {getUiTranslation("currentChat", language)}
               </span>
-              <span className={cn(
-                "text-xs font-semibold tracking-wide max-w-[200px] md:max-w-xs truncate",
-                theme === "dark" ? "text-white" : "text-slate-800"
-              )}>
-                {activeSession ? activeSession.title : getUiTranslation("introGuide", language)}
+              <span
+                className={cn(
+                  "text-xs font-semibold tracking-wide max-w-[200px] md:max-w-xs truncate",
+                  theme === "dark" ? "text-white" : "text-slate-800",
+                )}
+              >
+                {activeSession
+                  ? activeSession.title
+                  : getUiTranslation("introGuide", language)}
               </span>
             </div>
           </div>
@@ -1124,7 +1633,7 @@ export default function App() {
           <div className="flex items-center gap-3 sm:gap-4">
             <AnimatePresence mode="wait">
               {!currentOnlineStatus ? (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0 }}
@@ -1134,7 +1643,7 @@ export default function App() {
                   <span>{getUiTranslation("offlineActive", language)}</span>
                 </motion.div>
               ) : (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0 }}
@@ -1146,8 +1655,8 @@ export default function App() {
               )}
             </AnimatePresence>
 
-              {activeSession && (
-              <button 
+            {activeSession && (
+              <button
                 onClick={() => {
                   setActiveSessionId(null);
                   localStorage.removeItem("biblesphere_active_id");
@@ -1156,28 +1665,41 @@ export default function App() {
                   "hidden sm:inline-flex transition-all text-xs border px-3 py-1 rounded-full items-center gap-1 font-semibold",
                   theme === "dark"
                     ? "text-slate-400 hover:text-white border-white/10 bg-white/5"
-                    : "text-slate-600 hover:text-slate-950 border-slate-200 bg-slate-50"
+                    : "text-slate-600 hover:text-slate-950 border-slate-200 bg-slate-50",
                 )}
               >
                 <span>{getUiTranslation("closeStudy", language)}</span>
               </button>
             )}
 
-            <div className={cn(
-              "w-9 h-9 rounded-full flex items-center justify-center border",
-              theme === "dark" ? "bg-slate-800 border-white/10" : "bg-slate-100 border-slate-200"
-            )}>
-              <User className={cn(
-                "w-5 h-5",
-                theme === "dark" ? "text-slate-400" : "text-slate-500"
-              )} />
+            <div
+              className={cn(
+                "w-9 h-9 rounded-full flex items-center justify-center border",
+                theme === "dark"
+                  ? "bg-slate-800 border-white/10"
+                  : "bg-slate-100 border-slate-200",
+              )}
+            >
+              <User
+                className={cn(
+                  "w-5 h-5",
+                  theme === "dark" ? "text-slate-400" : "text-slate-500",
+                )}
+              />
             </div>
           </div>
         </header>
 
         {/* Content Box */}
-        <div 
+        <div
           ref={scrollRef}
+          onScroll={handleChatScroll}
+          onTouchStart={handleScrollInteractionStart}
+          onTouchEnd={handleScrollInteractionEnd}
+          onTouchCancel={handleScrollInteractionEnd}
+          onMouseDown={handleScrollInteractionStart}
+          onMouseUp={handleScrollInteractionEnd}
+          onMouseLeave={handleScrollInteractionEnd}
           className="flex-1 overflow-y-auto px-4 md:px-8 lg:px-24 xl:px-44 py-8 scroll-smooth"
         >
           {messages.length === 0 ? (
@@ -1191,23 +1713,25 @@ export default function App() {
                   <div className="absolute -inset-1 rounded-3xl bg-gradient-to-tr from-[#D4AF37]/20 to-[#8E6E2E]/20 blur-xl opacity-60 group-hover:opacity-100 transition duration-1000"></div>
                   <img
                     src={brandLogo}
-                    alt="bible-diary Logo"
+                    alt="Bible Diary Logo"
                     className="relative w-24 h-24 rounded-3xl object-cover shadow-xl border border-amber-500/15 select-none transition-all duration-500 hover:scale-105"
                     referrerPolicy="no-referrer"
                   />
                 </div>
-                
+
                 <h1 className="text-4xl md:text-5xl font-display font-light tracking-tight mt-2">
                   <span className="gold-gradient">
                     {getUiTranslation("titleMain", language)}
                   </span>
                 </h1>
-                <p className={cn(
-                  "text-base md:text-lg font-light max-w-xl mx-auto leading-relaxed",
-                  theme === "dark" ? "text-slate-400" : "text-slate-600"
-                )}>
+                <p
+                  className={cn(
+                    "text-base md:text-lg font-light max-w-xl mx-auto leading-relaxed",
+                    theme === "dark" ? "text-slate-400" : "text-slate-600",
+                  )}
+                >
                   {getUiTranslation("welcomeDesc", language)}
-                  
+
                   {!currentOnlineStatus && (
                     <span className="text-gold-500 font-normal">
                       {getUiTranslation("offlineBanner", language)}
@@ -1231,24 +1755,38 @@ export default function App() {
                       "p-6 text-left border rounded-2xl transition-all group shadow-xl flex flex-col justify-between cursor-pointer",
                       theme === "dark"
                         ? "bg-white/5 hover:bg-white/10 border-white/5 hover:border-gold-500/30"
-                        : "bg-white hover:bg-slate-50 border-slate-200 hover:border-gold-500/30 shadow-sm"
+                        : "bg-white hover:bg-slate-50 border-slate-200 hover:border-gold-500/30 shadow-sm",
                     )}
                   >
-                    <p className={cn(
-                      "font-light mb-4 leading-relaxed",
-                      theme === "dark" ? "text-slate-300 group-hover:text-white" : "text-slate-700 group-hover:text-slate-900"
-                    )}>{text}</p>
+                    <p
+                      className={cn(
+                        "font-light mb-4 leading-relaxed",
+                        theme === "dark"
+                          ? "text-slate-300 group-hover:text-white"
+                          : "text-slate-700 group-hover:text-slate-900",
+                      )}
+                    >
+                      {text}
+                    </p>
                     <div className="flex items-center justify-between w-full">
-                      <span className={cn(
-                        "text-[9px] uppercase tracking-widest font-mono transition-colors",
-                        theme === "dark" ? "text-slate-500 group-hover:text-gold-500" : "text-slate-400 group-hover:text-gold-600"
-                      )}>
+                      <span
+                        className={cn(
+                          "text-[9px] uppercase tracking-widest font-mono transition-colors",
+                          theme === "dark"
+                            ? "text-slate-500 group-hover:text-gold-500"
+                            : "text-slate-400 group-hover:text-gold-600",
+                        )}
+                      >
                         {getUiTranslation("queryGuide", language)}
                       </span>
-                      <Search className={cn(
-                        "w-4 h-4 transition-colors",
-                        theme === "dark" ? "text-slate-600 group-hover:text-gold-500" : "text-slate-400 group-hover:text-gold-600"
-                      )} />
+                      <Search
+                        className={cn(
+                          "w-4 h-4 transition-colors",
+                          theme === "dark"
+                            ? "text-slate-600 group-hover:text-gold-500"
+                            : "text-slate-400 group-hover:text-gold-600",
+                        )}
+                      />
                     </div>
                   </motion.button>
                 ))}
@@ -1263,7 +1801,7 @@ export default function App() {
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
                     "flex flex-col group",
-                    msg.role === "user" ? "items-end" : "items-start"
+                    msg.role === "user" ? "items-end" : "items-start",
                   )}
                 >
                   {msg.role === "model" && (
@@ -1274,7 +1812,7 @@ export default function App() {
                           {getUiTranslation("scribe", language)}
                         </span>
                       </div>
-                      
+
                       <VoiceReader
                         text={msg.text}
                         language={language}
@@ -1282,73 +1820,103 @@ export default function App() {
                       />
                     </div>
                   )}
-                  
-                  <div className={cn(
-                    "max-w-[90%] md:max-w-[85%]",
-                    msg.role === "user" 
-                      ? (theme === "dark" 
-                          ? "bg-slate-overlay border border-white/5 rounded-2xl rounded-tr-none px-6 py-4 shadow-xl" 
-                          : "bg-white border border-slate-200/80 rounded-2xl rounded-tr-none px-6 py-4 shadow-md text-slate-800")
-                      : cn(
-                          "space-y-4 text-sm sm:text-base md:text-lg font-light leading-relaxed max-w-none bible-markdown",
-                          theme === "dark" ? "text-white prose-invert prose-gold" : "text-slate-800 prose prose-gold"
-                        )
-                  )}>
+
+                  <div
+                    className={cn(
+                      "max-w-[90%] md:max-w-[85%]",
+                      msg.role === "user"
+                        ? theme === "dark"
+                          ? "bg-slate-overlay border border-white/5 rounded-2xl rounded-tr-none px-6 py-4 shadow-xl"
+                          : "bg-white border border-slate-200/80 rounded-2xl rounded-tr-none px-6 py-4 shadow-md text-slate-800"
+                        : cn(
+                            "space-y-4 text-sm sm:text-base md:text-lg font-light leading-relaxed max-w-none bible-markdown",
+                            theme === "dark"
+                              ? "text-white prose-invert prose-gold"
+                              : "text-slate-800 prose prose-gold",
+                          ),
+                    )}
+                  >
                     {msg.role === "user" ? (
-                      <p className={cn(
-                        "leading-relaxed font-light",
-                        theme === "dark" ? "text-slate-200" : "text-slate-800"
-                      )}>{msg.text}</p>
+                      <>
+                        <p
+                          className={cn(
+                            "leading-relaxed font-light",
+                            theme === "dark"
+                              ? "text-slate-200"
+                              : "text-slate-800",
+                          )}
+                        >
+                          {msg.text}
+                        </p>
+                        {detectBibleVerse(msg.text) && (
+                          <BibleVerseReader
+                            query={msg.text}
+                            onNavigate={(verse) => handleSend(verse)}
+                            language={language}
+                            theme={theme}
+                          />
+                        )}
+                      </>
                     ) : (
                       <div className="bible-markdown">
-                        <ReactMarkdown 
+                        <ReactMarkdown
                           components={{
-                            blockquote: ({node, ...props}) => (
-                              <blockquote className={cn(
-                                "border-l-2 border-gold-500 pl-6 py-1 italic text-lg my-6 rounded-r-md",
-                                theme === "dark" ? "bg-white/[0.01] text-slate-400" : "bg-slate-100/50 text-slate-600"
-                              )} {...props} />
+                            blockquote: ({ node, ...props }) => (
+                              <blockquote
+                                className={cn(
+                                  "border-l-2 border-gold-500 pl-6 py-1 italic text-lg my-6 rounded-r-md",
+                                  theme === "dark"
+                                    ? "bg-white/[0.01] text-slate-400"
+                                    : "bg-slate-100/50 text-slate-600",
+                                )}
+                                {...props}
+                              />
                             ),
-                            strong: ({node, ...props}) => (
-                              <span className="text-gold-500 font-medium" {...props} />
+                            strong: ({ node, ...props }) => (
+                              <span
+                                className="text-gold-500 font-medium"
+                                {...props}
+                              />
                             ),
-                            h3: ({node, ...props}) => (
-                              <h3 className={cn(
-                                "font-display text-lg tracking-wider mb-2",
-                                theme === "dark" ? "text-white" : "text-slate-900 font-semibold"
-                              )} {...props} />
-                            )
+                            h3: ({ node, ...props }) => (
+                              <h3
+                                className={cn(
+                                  "font-display text-lg tracking-wider mb-2",
+                                  theme === "dark"
+                                    ? "text-white"
+                                    : "text-slate-900 font-semibold",
+                                )}
+                                {...props}
+                              />
+                            ),
                           }}
                         >
                           {msg.text}
                         </ReactMarkdown>
-
-                        {(() => {
-                          const userText = i > 0 && messages[i - 1]?.role === "user" ? messages[i - 1].text : null;
-                          if (!userText) return null;
-
-                          return (
-                            <BibleVerseReader
-                              query={userText}
-                              onNavigate={(verse) => handleSend(verse)}
-                              language={language}
-                              theme={theme}
-                            />
-                          );
-                        })()}
                       </div>
                     )}
                   </div>
-                  
-                  <span className={cn(
-                    "text-[10px] mt-2 tracking-widest uppercase font-medium",
-                    theme === "dark" ? "text-slate-600" : "text-slate-400",
-                    msg.role === "user" ? "mr-1" : "ml-1"
-                  )}>
+
+                  <span
+                    className={cn(
+                      "text-[10px] mt-2 tracking-widest uppercase font-medium",
+                      theme === "dark" ? "text-slate-600" : "text-slate-400",
+                      msg.role === "user" ? "mr-1" : "ml-1",
+                    )}
+                  >
                     {formatTime(msg.timestamp)}
                   </span>
                 </motion.div>
               ))}
+
+              {isTranslating && (
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full bg-gold-500/20 animate-bounce"></div>
+                  <span className="text-xs tracking-widest uppercase text-gold-500/50 animate-pulse">
+                    {getUiTranslation("translating", language)}
+                  </span>
+                </div>
+              )}
 
               {isLoading && (
                 <div className="flex items-center gap-3">
@@ -1365,41 +1933,52 @@ export default function App() {
         {/* Input box */}
         <div className="p-4 pb-6 md:p-8 md:pb-12 flex flex-col items-center bg-transparent relative flex-shrink-0 w-full">
           <div className="w-full max-w-2xl relative">
-            <div className={cn(
-              "relative flex items-center border rounded-full h-14 md:h-16 px-4 md:px-6 shadow-2xl transition-all group",
-              theme === "dark"
-                ? "bg-slate-overlay border-white/10 focus-within:border-gold-500/50"
-                : "bg-white border-slate-200 focus-within:border-gold-500/50 shadow-md"
-            )}>
-               <button 
-                 onClick={() => {
-                   // Let user explore local help
-                   setInput(
-                     language === "ceb" 
-                       ? "Ipapatin-aw ang Sermon sa Bukid." 
-                       : language === "fil" 
-                         ? "Ipaliwanag ang Sermon sa Bundok." 
-                         : language === "bik"
-                           ? "Ipaliwanag an Sermon sa Bukid."
-                           : language === "ilo"
-                             ? "Ipalawagmo ti Sermon iti Bantay."
-                             : language === "hil"
-                               ? "Ipaathag ang Sermon sa Bukid."
-                               : "Explain the Sermon on the Mount."
-                   );
-                 }}
-                 className={cn(
-                   "transition-colors flex-shrink-0 cursor-pointer",
-                   theme === "dark" ? "text-slate-500 hover:text-gold-500" : "text-slate-400 hover:text-gold-600"
-                 )}
-                 title={getUiTranslation("selectGuide", language)}
-               >
-                  <BookOpen className="w-6 h-6" />
-                </button>
+            <div
+              className={cn(
+                "relative flex items-center border rounded-full h-14 md:h-16 px-4 md:px-6 shadow-2xl transition-all group",
+                theme === "dark"
+                  ? "bg-slate-overlay border-white/10 focus-within:border-gold-500/50"
+                  : "bg-white border-slate-200 focus-within:border-gold-500/50 shadow-md",
+              )}
+            >
+              <button
+                onClick={() => {
+                  // Let user explore local help
+                  setInput(
+                    language === "ceb"
+                      ? "Ipapatin-aw ang Sermon sa Bukid."
+                      : language === "fil"
+                        ? "Ipaliwanag ang Sermon sa Bundok."
+                        : language === "bik"
+                          ? "Ipaliwanag an Sermon sa Bukid."
+                          : language === "ilo"
+                            ? "Ipalawagmo ti Sermon iti Bantay."
+                            : language === "hil"
+                              ? "Ipaathag ang Sermon sa Bukid."
+                              : "Explain the Sermon on the Mount.",
+                  );
+                }}
+                className={cn(
+                  "transition-colors flex-shrink-0 cursor-pointer",
+                  theme === "dark"
+                    ? "text-slate-500 hover:text-gold-500"
+                    : "text-slate-400 hover:text-gold-600",
+                )}
+                title={getUiTranslation("selectGuide", language)}
+              >
+                <BookOpen className="w-6 h-6" />
+              </button>
               <input
+                ref={inputRef}
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onFocus={() => {
+                  if (scrollRef.current) {
+                    scrollRef.current.scrollTop =
+                      scrollRef.current.scrollHeight;
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
@@ -1407,35 +1986,41 @@ export default function App() {
                   }
                 }}
                 placeholder={
-                  currentOnlineStatus 
+                  currentOnlineStatus
                     ? getUiTranslation("placeholderOnline", language)
                     : getUiTranslation("placeholderOffline", language)
                 }
                 className={cn(
                   "flex-1 bg-transparent border-none focus:ring-0 px-4 font-light focus:outline-none min-w-0 font-sans",
-                  theme === "dark" ? "text-white placeholder-slate-500" : "text-slate-800 placeholder-slate-400"
+                  theme === "dark"
+                    ? "text-white placeholder-slate-500"
+                    : "text-slate-800 placeholder-slate-400",
                 )}
               />
               <div className="flex items-center gap-3 flex-shrink-0">
-                <button 
+                <button
                   onClick={() => handleSend()}
                   disabled={!input.trim() || isLoading}
                   className={cn(
                     "w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer",
-                    input.trim() && !isLoading 
-                      ? "bg-gradient-to-tr from-[#D4AF37] to-[#8E6E2E] text-midnight shadow-lg shadow-yellow-900/40 active:scale-95" 
-                      : (theme === "dark" ? "bg-white/5 text-slate-600 cursor-not-allowed" : "bg-slate-100 text-slate-300 cursor-not-allowed")
+                    input.trim() && !isLoading
+                      ? "bg-gradient-to-tr from-[#D4AF37] to-[#8E6E2E] text-midnight shadow-lg shadow-yellow-900/40 active:scale-95"
+                      : theme === "dark"
+                        ? "bg-white/5 text-slate-600 cursor-not-allowed"
+                        : "bg-slate-100 text-slate-300 cursor-not-allowed",
                   )}
                 >
                   <Send className="w-5 h-5" />
                 </button>
               </div>
             </div>
-            
-            <p className={cn(
-              "text-[9px] text-center mt-4 uppercase tracking-[0.3em]",
-              theme === "dark" ? "text-slate-600" : "text-slate-400"
-            )}>
+
+            <p
+              className={cn(
+                "text-[9px] text-center mt-4 uppercase tracking-[0.3em]",
+                theme === "dark" ? "text-slate-600" : "text-slate-400",
+              )}
+            >
               {getUiTranslation("sourceFooter", language)}
             </p>
           </div>
@@ -1465,31 +2050,54 @@ export default function App() {
               exit={{ scale: 0.95, y: 15 }}
               className={cn(
                 "max-w-md w-full p-6 md:p-8 rounded-3xl border text-center relative overflow-hidden select-text",
-                theme === "dark" ? "bg-[#0E1015]/95 border-white/10" : "bg-white border-slate-200"
+                theme === "dark"
+                  ? "bg-[#0E1015]/95 border-white/10"
+                  : "bg-white border-slate-200",
               )}
             >
               <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400 select-none" />
-              
+
               <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-4">
                 <Heart className="w-8 h-8 fill-emerald-500 text-emerald-500 animate-pulse" />
               </div>
 
               <h2 className="text-xl font-black tracking-tight mb-2">
-                {language === "fil" ? "Malugod na Tinanggap ang Alay!" : language === "ceb" ? "Nadawat na ang Halad!" : "Offering Gracefully Accepted!"}
+                {language === "fil"
+                  ? "Malugod na Tinanggap ang Alay!"
+                  : language === "ceb"
+                    ? "Nadawat na ang Halad!"
+                    : "Offering Gracefully Accepted!"}
               </h2>
-              
+
               <p className="text-xs font-light text-slate-400 max-w-xs mx-auto leading-relaxed mb-6">
-                {language === "fil" 
-                  ? "Maraming salamat sa inyong paghahasik sa gawain ng Panginoon! Pagpalain kayo ng masagana." 
-                  : language === "ceb" 
-                    ? "Salamat kaayo sa inyong paghatag sa buhat sa Ginoo! Pagatabangan ug panalanginan kamo sa Dios." 
+                {language === "fil"
+                  ? "Maraming salamat sa inyong paghahasik sa gawain ng Panginoon! Pagpalain kayo ng masagana."
+                  : language === "ceb"
+                    ? "Salamat kaayo sa inyong paghatag sa buhat sa Ginoo! Pagatabangan ug panalanginan kamo sa Dios."
                     : "Your support allows our ministries, scriptures, and spiritual research to flourish across the region."}
               </p>
 
               <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-4 mb-6 text-left text-xs space-y-1.5 font-mono select-text">
-                <p className="text-slate-500">CATEGORY: <span className="text-emerald-400 font-bold">{donationSuccessDetails.purpose}</span></p>
-                <p className="text-slate-500">AMOUNT COMPLETED: <span className="text-emerald-400 font-black">₱ {parseFloat(donationSuccessDetails.amount).toLocaleString()} PHP</span></p>
-                <p className="text-slate-500">PROVIDER: <span className="text-[#3b82f6] font-bold">PayMongo Gateway Secured</span></p>
+                <p className="text-slate-500">
+                  CATEGORY:{" "}
+                  <span className="text-emerald-400 font-bold">
+                    {donationSuccessDetails.purpose}
+                  </span>
+                </p>
+                <p className="text-slate-500">
+                  AMOUNT COMPLETED:{" "}
+                  <span className="text-emerald-400 font-black">
+                    ₱{" "}
+                    {parseFloat(donationSuccessDetails.amount).toLocaleString()}{" "}
+                    PHP
+                  </span>
+                </p>
+                <p className="text-slate-500">
+                  PROVIDER:{" "}
+                  <span className="text-[#3b82f6] font-bold">
+                    PayMongo Gateway Secured
+                  </span>
+                </p>
               </div>
 
               <button
@@ -1498,6 +2106,154 @@ export default function App() {
               >
                 Amen
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {renameSessionId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => {
+              setRenameSessionId(null);
+              setRenameDraft("");
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 10 }}
+              onClick={(e) => e.stopPropagation()}
+              className={cn(
+                "w-full max-w-md rounded-2xl border p-5 shadow-2xl",
+                theme === "dark"
+                  ? "bg-[#0E1015] border-white/10"
+                  : "bg-white border-slate-200",
+              )}
+            >
+              <h2
+                className={cn(
+                  "text-lg font-semibold mb-4",
+                  theme === "dark" ? "text-white" : "text-slate-900",
+                )}
+              >
+                {getUiTranslation("renameChat", language)}
+              </h2>
+              <input
+                autoFocus
+                value={renameDraft}
+                onChange={(e) => setRenameDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRenameSession();
+                  if (e.key === "Escape") {
+                    setRenameSessionId(null);
+                    setRenameDraft("");
+                  }
+                }}
+                placeholder={getUiTranslation("renamePlaceholder", language)}
+                className={cn(
+                  "w-full rounded-xl border px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-gold-500/40 mb-4",
+                  theme === "dark"
+                    ? "bg-white/5 border-white/10 text-white"
+                    : "bg-slate-50 border-slate-200 text-slate-900",
+                )}
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => {
+                    setRenameSessionId(null);
+                    setRenameDraft("");
+                  }}
+                  className={cn(
+                    "px-4 py-2 rounded-full text-xs font-semibold border",
+                    theme === "dark"
+                      ? "border-white/10 text-slate-300 hover:bg-white/5"
+                      : "border-slate-200 text-slate-600 hover:bg-slate-50",
+                  )}
+                >
+                  {getUiTranslation("cancel", language)}
+                </button>
+                <button
+                  onClick={handleRenameSession}
+                  disabled={!renameDraft.trim()}
+                  className="px-4 py-2 rounded-full text-xs font-semibold bg-gold-500 text-black disabled:opacity-50"
+                >
+                  {getUiTranslation("save", language)}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {deleteSessionId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={closeDeleteConfirm}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 10 }}
+              onClick={(e) => e.stopPropagation()}
+              className={cn(
+                "w-full max-w-md rounded-2xl border p-5 shadow-2xl",
+                theme === "dark"
+                  ? "bg-[#0E1015] border-white/10"
+                  : "bg-white border-slate-200",
+              )}
+            >
+              <h2
+                className={cn(
+                  "text-lg font-semibold mb-2",
+                  theme === "dark" ? "text-white" : "text-slate-900",
+                )}
+              >
+                {getUiTranslation("deleteChat", language)}
+              </h2>
+              <p
+                className={cn(
+                  "text-sm mb-1",
+                  theme === "dark" ? "text-slate-400" : "text-slate-600",
+                )}
+              >
+                {sessions.find((s) => s.id === deleteSessionId)?.title}
+              </p>
+              <p
+                className={cn(
+                  "text-sm mb-5",
+                  theme === "dark" ? "text-slate-500" : "text-slate-500",
+                )}
+              >
+                {getUiTranslation("deleteChatConfirm", language)}
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={closeDeleteConfirm}
+                  className={cn(
+                    "px-4 py-2 rounded-full text-xs font-semibold border",
+                    theme === "dark"
+                      ? "border-white/10 text-slate-300 hover:bg-white/5"
+                      : "border-slate-200 text-slate-600 hover:bg-slate-50",
+                  )}
+                >
+                  {getUiTranslation("cancel", language)}
+                </button>
+                <button
+                  onClick={confirmDeleteSession}
+                  className="px-4 py-2 rounded-full text-xs font-semibold bg-red-500 hover:bg-red-600 text-white"
+                >
+                  {getUiTranslation("delete", language)}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

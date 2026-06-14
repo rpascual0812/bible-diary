@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Languages, ChevronDown } from "lucide-react";
 import { cn } from "../lib/utils";
-import { LangType } from "../App";
+import type { LangType } from "../types";
+import { LANG_OPTIONS } from "../languages";
 
 interface LanguageDropdownProps {
   currentLang: LangType;
@@ -13,14 +14,11 @@ interface LanguageDropdownProps {
   theme?: "dark" | "light";
 }
 
-const LANGUAGES: { code: LangType; label: string; native: string }[] = [
-  { code: "en", label: "English", native: "English" },
-  { code: "fil", label: "Filipino", native: "Tagalog" },
-  { code: "ceb", label: "Cebuano", native: "Sinugboanon" },
-  { code: "bik", label: "Bicolano", native: "Bicolano" },
-  { code: "ilo", label: "Ilocano", native: "Ilokano" },
-  { code: "hil", label: "Ilonggo", native: "Hiligaynon" },
-];
+const LANGUAGES = LANG_OPTIONS.map(({ code, label, native }) => ({
+  code,
+  label,
+  native: native ?? label,
+}));
 
 export function LanguageDropdown({
   currentLang,
@@ -101,7 +99,7 @@ export function LanguageDropdown({
             }
             transition={{ duration: 0.15 }}
             className={cn(
-              "absolute w-56 rounded-xl p-1.5 shadow-2xl z-50 backdrop-blur-md focus:outline-none border",
+              "absolute w-56 rounded-xl p-1.5 shadow-2xl z-50 backdrop-blur-md focus:outline-none border max-h-56 overflow-y-auto overscroll-contain",
               isDark 
                 ? "bg-[#0e1015]/95 border-white/10" 
                 : "bg-white border-slate-200",

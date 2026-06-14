@@ -1,5 +1,5 @@
 {
-  "name": "bible-diary",
+  "name": "Bible Diary",
   "description": "A conversational AI companion for Biblical wisdom and exploration, inspired by Gemini.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
