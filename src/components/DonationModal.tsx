@@ -14,7 +14,9 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "../lib/utils";
-import { LangType } from "../App";
+import type { LangType } from "../types";
+import type { ThemeId } from "../theme";
+import { isDarkTheme } from "../theme";
 import {
   BAKED_BANK_NAME,
   BAKED_BANK_ACCOUNT_NAME,
@@ -30,7 +32,7 @@ interface DonationModalProps {
   isOpen: boolean;
   onClose: () => void;
   language: LangType;
-  theme: "dark" | "light";
+  theme: ThemeId;
 }
 
 const BANK_DETAILS = {
@@ -62,7 +64,7 @@ export function DonationModal({
   const [copiedBank, setCopiedBank] = useState<boolean>(false);
   const [copiedGcash, setCopiedGcash] = useState<boolean>(false);
 
-  const isDark = theme === "dark";
+  const isDark = isDarkTheme(theme);
 
   // Handle Close & Reset variables
   const handleClose = () => {

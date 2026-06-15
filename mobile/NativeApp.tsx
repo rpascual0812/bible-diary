@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   FlatList,
   Image,
   Keyboard,
@@ -9,6 +10,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -16,7 +18,6 @@ import {
   View,
   type NativeScrollEvent,
 } from "react-native";
-import * as Network from "expo-network";
 import Markdown from "react-native-markdown-display";
 import {
   SafeAreaProvider,
@@ -25,24 +26,42 @@ import {
 } from "react-native-safe-area-context";
 import { GeminiService, Message } from "../src/services/geminiService";
 import {
-  translateMessages,
-  translateText,
+  sessionNeedsTranslation,
+  translateChatSession,
 } from "../src/services/translationService";
 import { getOfflineAnswer } from "../src/data/offlineBibleData";
-import { BAKED_GEMINI_API_KEY } from "../src/config/apiKey";
+import { resolveGeminiApiKey } from "../src/config/apiKey";
+import {
+  isGeminiQuotaError,
+  resolveGeminiChatErrorMessage,
+} from "../src/lib/geminiErrors";
+import { useOnlineStatus } from "../src/lib/useOnlineStatus";
 import { formatTime } from "../src/lib/utils";
 import type { ChatSession, LangType } from "../src/types";
 import { getItem, removeItem, setItem } from "../src/native/storage";
-import { TOPICS, t } from "../src/native/translations";
+import { t } from "../src/native/translations";
+import {
+  loadVerseSuggestions,
+  pickRandomVerseReferences,
+  SUGGESTION_COUNT,
+  type VerseSuggestion,
+} from "../src/lib/verseSuggestions";
+import {
+  handleChatBackPress,
+  pickFallbackSessionId,
+} from "../src/lib/chatNavigation";
 import { LanguageDropdown } from "../src/native/LanguageDropdown";
+import { ThemeDropdown } from "../src/native/ThemeDropdown";
 import { DonationModal } from "../src/native/DonationModal";
 import { NativeBibleVerseReader } from "../src/native/BibleVerseReader";
 import { detectBibleVerse } from "../src/lib/bibleVerse";
 import { mergeImportedSessions } from "../src/lib/conversationBackup";
 import {
-  exportConversationsNative,
-  importConversationsNative,
-} from "../src/native/conversationBackup.native";
+  getNativeThemeColors,
+  isDarkTheme,
+  normalizeTheme,
+  type ThemeId,
+} from "../src/theme";
 
 const brandLogo = require("../src/assets/images/brand-logo.png");
 
@@ -53,45 +72,57 @@ const STORAGE_KEYS = {
   theme: "biblesphere_theme",
 };
 
-function createSession(title?: string): ChatSession {
+function createSession(title: string, language: LangType): ChatSession {
   return {
     id: `session_${Date.now()}`,
-    title: title ?? "New Study",
+    title,
     messages: [],
     created_at: Date.now(),
+    language,
   };
 }
 
 export default function NativeApp() {
   const [language, setLanguage] = useState<LangType>("en");
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<ThemeId>("dark");
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [showHomeScreen, setShowHomeScreen] = useState(true);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
+  const isOnline = useOnlineStatus();
+  const [cloudQuotaExceeded, setCloudQuotaExceeded] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const [themeDropdownOpen, setThemeDropdownOpen] = useState(false);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
   const [renameSessionId, setRenameSessionId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [verseSuggestions, setVerseSuggestions] = useState<VerseSuggestion[]>(
+    [],
+  );
+  const [verseSuggestionsLoading, setVerseSuggestionsLoading] = useState(true);
 
   const geminiRef = useRef<GeminiService | null>(null);
   const listRef = useRef<FlatList<Message>>(null);
+  const sessionsRef = useRef(sessions);
+  const languageRef = useRef(language);
+  const translatingSessionRef = useRef<string | null>(null);
+  sessionsRef.current = sessions;
+  languageRef.current = language;
 
-  const isDark = theme === "dark";
-  const colors = isDark ? darkColors : lightColors;
+  const colors = getNativeThemeColors(theme);
+  const isDark = isDarkTheme(theme);
 
   const activeSession = useMemo(
     () => sessions.find((session) => session.id === activeSessionId) ?? null,
     [sessions, activeSessionId],
   );
   const messages = activeSession?.messages ?? [];
-  const suggestions = TOPICS[language];
 
   const saveSessions = useCallback(
     async (updated: ChatSession[], activeId = activeSessionId) => {
@@ -112,29 +143,6 @@ export default function NativeApp() {
   useEffect(() => {
     let active = true;
 
-    async function refreshNetworkState() {
-      try {
-        const state = await Network.getNetworkStateAsync();
-        if (!active) return;
-        setIsOnline(
-          Boolean(state.isConnected && state.isInternetReachable !== false),
-        );
-      } catch {
-        if (active) setIsOnline(false);
-      }
-    }
-
-    refreshNetworkState();
-    const interval = setInterval(refreshNetworkState, 5000);
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-
     async function hydrate() {
       const [savedLang, savedTheme, savedSessions, savedActiveId] =
         await Promise.all([
@@ -147,23 +155,29 @@ export default function NativeApp() {
       if (!active) return;
 
       if (savedLang) setLanguage(savedLang as LangType);
-      if (savedTheme === "light" || savedTheme === "dark") setTheme(savedTheme);
+      if (savedTheme) setTheme(normalizeTheme(savedTheme));
 
       if (savedSessions) {
         try {
           const parsed = JSON.parse(savedSessions) as ChatSession[];
           setSessions(parsed);
-          if (
+          const activeId =
             savedActiveId &&
             parsed.some((session) => session.id === savedActiveId)
-          ) {
-            setActiveSessionId(savedActiveId);
-          } else if (parsed.length > 0) {
-            setActiveSessionId(parsed[0].id);
+              ? savedActiveId
+              : parsed.length > 0
+                ? parsed[0].id
+                : null;
+          if (activeId) {
+            setActiveSessionId(activeId);
           }
+          setShowHomeScreen(true);
         } catch {
           setSessions([]);
+          setShowHomeScreen(true);
         }
+      } else {
+        setShowHomeScreen(true);
       }
 
       setHydrated(true);
@@ -175,10 +189,30 @@ export default function NativeApp() {
     };
   }, []);
 
+  const refreshVerseSuggestions = useCallback(async (exclude: string[] = []) => {
+    setVerseSuggestionsLoading(true);
+    const references = pickRandomVerseReferences(SUGGESTION_COUNT, exclude);
+    try {
+      const loaded = await loadVerseSuggestions(references);
+      setVerseSuggestions(loaded);
+    } catch {
+      setVerseSuggestions(
+        references.map((reference) => ({ reference, text: "" })),
+      );
+    } finally {
+      setVerseSuggestionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    void refreshVerseSuggestions();
+  }, [hydrated, refreshVerseSuggestions]);
+
   useEffect(() => {
     if (!hydrated) return;
 
-    const apiKey = BAKED_GEMINI_API_KEY?.trim();
+    const apiKey = resolveGeminiApiKey();
     if (apiKey) {
       geminiRef.current = new GeminiService(apiKey, language);
     } else {
@@ -207,64 +241,178 @@ export default function NativeApp() {
     await setItem(STORAGE_KEYS.language, lang);
     geminiRef.current?.setLanguage(lang);
 
-    if (!activeSession?.messages.length) return;
+    const session = sessions.find((item) => item.id === activeSessionId);
+    if (!session) return;
 
-    const apiKey = BAKED_GEMINI_API_KEY?.trim();
+    if (!session.messages.length) {
+      await saveSessions(
+        sessions.map((item) =>
+          item.id === activeSessionId ? { ...item, language: lang } : item,
+        ),
+        activeSessionId ?? undefined,
+      );
+      return;
+    }
+
+    const apiKey = resolveGeminiApiKey();
     if (!apiKey || !isOnline) return;
 
     setIsTranslating(true);
     try {
-      const translatedMessages = await translateMessages(
-        apiKey,
-        activeSession.messages,
-        lang,
-      );
-      const translatedTitle = await translateText(
-        apiKey,
-        activeSession.title,
-        lang,
-      );
-      const updated = sessions.map((session) =>
-        session.id === activeSessionId
-          ? { ...session, title: translatedTitle, messages: translatedMessages }
-          : session,
+      const translated = await translateChatSession(apiKey, session, lang);
+      const updated = sessions.map((item) =>
+        item.id === activeSessionId ? translated : item,
       );
       await saveSessions(updated, activeSessionId ?? undefined);
     } catch (error) {
       console.error("Translation failed:", error);
+      if (isGeminiQuotaError(error)) {
+        setCloudQuotaExceeded(true);
+      }
     } finally {
       setIsTranslating(false);
     }
   };
 
-  const toggleTheme = async () => {
-    const next = theme === "dark" ? "light" : "dark";
+  const translateSessionToCurrentLanguage = useCallback(
+    async (sessionId: string, targetLang: LangType = language) => {
+      if (translatingSessionRef.current === sessionId) return;
+
+      const session = sessionsRef.current.find((item) => item.id === sessionId);
+      if (!session || !sessionNeedsTranslation(session, targetLang)) return;
+
+      const apiKey = resolveGeminiApiKey();
+      if (!apiKey || !isOnline) return;
+
+      translatingSessionRef.current = sessionId;
+      setIsTranslating(true);
+      try {
+        const translated = await translateChatSession(
+          apiKey,
+          session,
+          targetLang,
+        );
+        const updated = sessionsRef.current.map((item) =>
+          item.id === sessionId ? translated : item,
+        );
+        await saveSessions(updated, sessionId);
+      } catch (error) {
+        console.error("Translation failed:", error);
+        if (isGeminiQuotaError(error)) {
+          setCloudQuotaExceeded(true);
+        }
+      } finally {
+        translatingSessionRef.current = null;
+        setIsTranslating(false);
+      }
+    },
+    [language, isOnline, saveSessions],
+  );
+
+  useEffect(() => {
+    if (!hydrated || !activeSessionId || showHomeScreen) return;
+    void translateSessionToCurrentLanguage(activeSessionId, language);
+  }, [
+    hydrated,
+    activeSessionId,
+    showHomeScreen,
+    language,
+    translateSessionToCurrentLanguage,
+  ]);
+
+  const changeTheme = async (next: ThemeId) => {
     setTheme(next);
     await setItem(STORAGE_KEYS.theme, next);
   };
 
+  const goHome = useCallback(() => {
+    setShowHomeScreen(true);
+    setSidebarOpen(false);
+  }, []);
+
   const handleSelectSession = async (id: string) => {
     setActiveSessionId(id);
     await setItem(STORAGE_KEYS.activeId, id);
+    setShowHomeScreen(false);
     setSidebarOpen(false);
+    void translateSessionToCurrentLanguage(id, languageRef.current);
   };
 
   const closeSidebar = () => setSidebarOpen(false);
 
+  useEffect(() => {
+    if (!hydrated) return;
+
+    const onBackPress = () => {
+      if (isDonationModalOpen) {
+        setIsDonationModalOpen(false);
+        return true;
+      }
+
+      return handleChatBackPress(
+        {
+          sessions,
+          activeSessionId,
+          sidebarOpen,
+          renameOpen: renameSessionId !== null,
+          deleteOpen: deleteSessionId !== null,
+          showHomeScreen,
+        },
+        {
+          openSidebar: () => setSidebarOpen(true),
+          closeSidebar,
+          closeRename: () => {
+            setRenameSessionId(null);
+            setRenameDraft("");
+          },
+          closeDelete: () => setDeleteSessionId(null),
+          selectSession: (id) => {
+            void handleSelectSession(id);
+          },
+          goHome,
+        },
+      );
+    };
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      onBackPress,
+    );
+    return () => subscription.remove();
+  }, [
+    hydrated,
+    sessions,
+    activeSessionId,
+    sidebarOpen,
+    renameSessionId,
+    deleteSessionId,
+    isDonationModalOpen,
+    showHomeScreen,
+    goHome,
+  ]);
+
   const handleCreateSession = async () => {
-    const session = createSession(t("newChat", language));
+    const session = createSession(t("newChat", language), language);
     const updated = [session, ...sessions];
     await saveSessions(updated, session.id);
     setActiveSessionId(session.id);
+    setShowHomeScreen(false);
     setSidebarOpen(false);
   };
 
   const handleDeleteSession = async (id: string) => {
     const updated = sessions.filter((session) => session.id !== id);
     const nextActive =
-      activeSessionId === id ? (updated[0]?.id ?? null) : activeSessionId;
+      activeSessionId === id
+        ? updated.length > 0
+          ? pickFallbackSessionId(updated) ?? updated[0]?.id ?? null
+          : null
+        : activeSessionId;
     setActiveSessionId(nextActive);
-    if (!nextActive) {
+    if (nextActive) {
+      await setItem(STORAGE_KEYS.activeId, nextActive);
+    } else {
+      setShowHomeScreen(true);
       await removeItem(STORAGE_KEYS.activeId);
     }
     await saveSessions(updated, nextActive ?? undefined);
@@ -311,16 +459,33 @@ export default function NativeApp() {
 
   const handleExportConversations = async () => {
     setSidebarOpen(false);
-    const result = await exportConversationsNative(sessions, activeSessionId);
-    if (result.cancelled) return;
-    if (result.error === "empty") {
-      Alert.alert(
-        t("exportConversations", language),
-        t("exportEmpty", language),
+    try {
+      const { exportConversationsNative } = await import(
+        "../src/native/conversationBackup.native"
       );
-      return;
-    }
-    if (result.error) {
+      const result = await exportConversationsNative(sessions, activeSessionId);
+      if (result.cancelled) return;
+      if (result.error === "empty") {
+        Alert.alert(
+          t("exportConversations", language),
+          t("exportEmpty", language),
+        );
+        return;
+      }
+      if (result.error === "native_module_unavailable") {
+        Alert.alert(
+          t("exportConversations", language),
+          t("nativeModuleUnavailable", language),
+        );
+        return;
+      }
+      if (result.error) {
+        Alert.alert(
+          t("exportConversations", language),
+          t("exportError", language),
+        );
+      }
+    } catch {
       Alert.alert(
         t("exportConversations", language),
         t("exportError", language),
@@ -331,6 +496,9 @@ export default function NativeApp() {
   const handleImportConversations = async () => {
     setSidebarOpen(false);
     try {
+      const { importConversationsNative } = await import(
+        "../src/native/conversationBackup.native"
+      );
       const result = await importConversationsNative();
       if ("cancelled" in result) return;
 
@@ -340,6 +508,7 @@ export default function NativeApp() {
         importedCount,
       } = mergeImportedSessions(sessions, result.backup.sessions);
       setActiveSessionId(nextActive);
+      setShowHomeScreen(true);
       if (nextActive) {
         await setItem(STORAGE_KEYS.activeId, nextActive);
       } else {
@@ -350,7 +519,17 @@ export default function NativeApp() {
         t("importConversations", language),
         t("importSuccess", language).replace("{count}", String(importedCount)),
       );
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "native_module_unavailable"
+      ) {
+        Alert.alert(
+          t("importConversations", language),
+          t("nativeModuleUnavailable", language),
+        );
+        return;
+      }
       Alert.alert(
         t("importConversations", language),
         t("importError", language),
@@ -362,15 +541,27 @@ export default function NativeApp() {
     const textToSend = (customText ?? input).trim();
     if (!textToSend || isLoading) return;
 
+    setIsLoading(true);
+    setInput("");
+
     let sessionId = activeSessionId;
     let sessionList = [...sessions];
     let currentSession = sessionList.find(
       (session) => session.id === sessionId,
     );
 
-    if (!currentSession) {
+    if (showHomeScreen) {
       currentSession = createSession(
         textToSend.substring(0, 32) + (textToSend.length > 32 ? "..." : ""),
+        language,
+      );
+      sessionList = [currentSession, ...sessionList];
+      sessionId = currentSession.id;
+      setActiveSessionId(sessionId);
+    } else if (!currentSession) {
+      currentSession = createSession(
+        textToSend.substring(0, 32) + (textToSend.length > 32 ? "..." : ""),
+        language,
       );
       sessionList = [currentSession, ...sessionList];
       sessionId = currentSession.id;
@@ -380,6 +571,7 @@ export default function NativeApp() {
         ...currentSession,
         title:
           textToSend.substring(0, 32) + (textToSend.length > 32 ? "..." : ""),
+        language,
       };
       sessionList = sessionList.map((session) =>
         session.id === currentSession!.id ? currentSession! : session,
@@ -392,22 +584,31 @@ export default function NativeApp() {
       timestamp: Date.now(),
     };
 
-    const withUser = sessionList.map((session) =>
-      session.id === sessionId
-        ? { ...session, messages: [...session.messages, userMsg] }
-        : session,
-    );
+    const withUser = sessionList.map((session) => {
+      if (session.id !== sessionId) return session;
+      const nextLanguage =
+        session.language == null || session.language === language
+          ? language
+          : session.language;
+      return {
+        ...session,
+        messages: [...session.messages, userMsg],
+        language: nextLanguage,
+      };
+    });
 
-    await saveSessions(withUser, sessionId);
-    setInput("");
-    setIsLoading(true);
+    setSessions(withUser);
+    setShowHomeScreen(false);
+    void saveSessions(withUser, sessionId);
 
     try {
       let aiText = "";
-      if (isOnline && geminiRef.current) {
+      if (geminiRef.current && isOnline) {
         aiText = await geminiRef.current.sendMessage(textToSend);
-      } else {
+      } else if (!isOnline) {
         aiText = getOfflineAnswer(textToSend, language);
+      } else {
+        aiText = `## Local Study Mode\n\nYou are online, but cloud AI is not configured (missing Gemini API key). Using the offline Bible study database.\n\n${getOfflineAnswer(textToSend, language)}`;
       }
 
       const aiMsg: Message = {
@@ -418,19 +619,35 @@ export default function NativeApp() {
 
       const withAi = withUser.map((session) =>
         session.id === sessionId
-          ? { ...session, messages: [...session.messages, aiMsg] }
+          ? {
+              ...session,
+              messages: [...session.messages, aiMsg],
+              language: session.language ?? language,
+            }
           : session,
       );
       await saveSessions(withAi, sessionId);
-    } catch {
+      setCloudQuotaExceeded(false);
+    } catch (error) {
+      if (isGeminiQuotaError(error)) {
+        setCloudQuotaExceeded(true);
+      }
       const fallback: Message = {
         role: "model",
-        text: getOfflineAnswer(textToSend, language),
+        text: resolveGeminiChatErrorMessage(
+          error,
+          language,
+          getOfflineAnswer(textToSend, language),
+        ),
         timestamp: Date.now(),
       };
       const withFallback = withUser.map((session) =>
         session.id === sessionId
-          ? { ...session, messages: [...session.messages, fallback] }
+          ? {
+              ...session,
+              messages: [...session.messages, fallback],
+              language: session.language ?? language,
+            }
           : session,
       );
       await saveSessions(withFallback, sessionId);
@@ -452,7 +669,7 @@ export default function NativeApp() {
           <Text style={[styles.splashSubtitle, { color: colors.muted }]}>
             Bible Companion & Study Guide
           </Text>
-          <ActivityIndicator color="#D4AF37" style={{ marginTop: 24 }} />
+          <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
         </SafeAreaView>
       </SafeAreaProvider>
     );
@@ -464,7 +681,7 @@ export default function NativeApp() {
         <SafeAreaView
           style={[styles.centered, { backgroundColor: colors.background }]}
         >
-          <ActivityIndicator color="#D4AF37" size="large" />
+          <ActivityIndicator color={colors.accent} size="large" />
         </SafeAreaView>
       </SafeAreaProvider>
     );
@@ -473,28 +690,36 @@ export default function NativeApp() {
   return (
     <SafeAreaProvider>
       <NativeAppContent
+        theme={theme}
         colors={colors}
         isDark={isDark}
         language={language}
         isOnline={isOnline}
+        cloudQuotaExceeded={cloudQuotaExceeded}
         activeSession={activeSession}
         messages={messages}
-        suggestions={suggestions}
+        verseSuggestions={verseSuggestions}
+        verseSuggestionsLoading={verseSuggestionsLoading}
+        refreshVerseSuggestions={refreshVerseSuggestions}
+        showHomeScreen={showHomeScreen}
+        goHome={goHome}
         input={input}
         setInput={setInput}
         isLoading={isLoading}
         isTranslating={isTranslating}
         sidebarOpen={sidebarOpen}
         langDropdownOpen={langDropdownOpen}
+        themeDropdownOpen={themeDropdownOpen}
         sessions={sessions}
         activeSessionId={activeSessionId}
         listRef={listRef}
         handleSend={handleSend}
         handleLanguageChange={handleLanguageChange}
-        toggleTheme={toggleTheme}
+        changeTheme={changeTheme}
         setSidebarOpen={setSidebarOpen}
         closeSidebar={closeSidebar}
         setLangDropdownOpen={setLangDropdownOpen}
+        setThemeDropdownOpen={setThemeDropdownOpen}
         handleCreateSession={handleCreateSession}
         handleSelectSession={handleSelectSession}
         openDeleteConfirm={openDeleteConfirm}
@@ -517,28 +742,36 @@ export default function NativeApp() {
 }
 
 interface NativeAppContentProps {
-  colors: typeof darkColors;
+  theme: ThemeId;
+  colors: ReturnType<typeof getNativeThemeColors>;
   isDark: boolean;
   language: LangType;
   isOnline: boolean;
+  cloudQuotaExceeded: boolean;
   activeSession: ChatSession | null;
   messages: Message[];
-  suggestions: string[];
+  verseSuggestions: VerseSuggestion[];
+  verseSuggestionsLoading: boolean;
+  refreshVerseSuggestions: (exclude?: string[]) => Promise<void>;
+  showHomeScreen: boolean;
+  goHome: () => void;
   input: string;
   setInput: (value: string) => void;
   isLoading: boolean;
   isTranslating: boolean;
   sidebarOpen: boolean;
   langDropdownOpen: boolean;
+  themeDropdownOpen: boolean;
   sessions: ChatSession[];
   activeSessionId: string | null;
   listRef: React.RefObject<FlatList<Message> | null>;
   handleSend: (customText?: string) => Promise<void>;
   handleLanguageChange: (lang: LangType) => Promise<void>;
-  toggleTheme: () => Promise<void>;
+  changeTheme: (theme: ThemeId) => Promise<void>;
   setSidebarOpen: (open: boolean) => void;
   closeSidebar: () => void;
   setLangDropdownOpen: (open: boolean) => void;
+  setThemeDropdownOpen: (open: boolean) => void;
   handleCreateSession: () => Promise<void>;
   handleSelectSession: (id: string) => Promise<void>;
   openDeleteConfirm: (id: string) => void;
@@ -558,28 +791,36 @@ interface NativeAppContentProps {
 }
 
 function NativeAppContent({
+  theme,
   colors,
   isDark,
   language,
   isOnline,
+  cloudQuotaExceeded,
   activeSession,
   messages,
-  suggestions,
+  verseSuggestions,
+  verseSuggestionsLoading,
+  refreshVerseSuggestions,
+  showHomeScreen,
+  goHome,
   input,
   setInput,
   isLoading,
   isTranslating,
   sidebarOpen,
   langDropdownOpen,
+  themeDropdownOpen,
   sessions,
   activeSessionId,
   listRef,
   handleSend,
   handleLanguageChange,
-  toggleTheme,
+  changeTheme,
   setSidebarOpen,
   closeSidebar,
   setLangDropdownOpen,
+  setThemeDropdownOpen,
   handleCreateSession,
   handleSelectSession,
   openDeleteConfirm,
@@ -682,22 +923,134 @@ function NativeAppContent({
                 style={[styles.headerTitle, { color: colors.text }]}
                 numberOfLines={1}
               >
-                {activeSession?.title ?? "Bible Diary"}
+                {showHomeScreen
+                  ? "Bible Diary"
+                  : (activeSession?.title ?? "Bible Diary")}
               </Text>
               <Text
                 style={[
                   styles.headerStatus,
-                  { color: isOnline ? "#4ade80" : colors.muted },
+                  {
+                    color: !isOnline
+                      ? colors.muted
+                      : cloudQuotaExceeded
+                        ? "#fb923c"
+                        : "#4ade80",
+                  },
                 ]}
               >
-                {isOnline
-                  ? t("onlineActive", language)
-                  : t("offlineActive", language)}
+                {!isOnline
+                  ? t("offlineActive", language)
+                  : cloudQuotaExceeded
+                    ? t("cloudQuotaActive", language)
+                    : t("onlineActive", language)}
               </Text>
             </View>
-            <View style={styles.headerButton} />
+            {!showHomeScreen ? (
+              <Pressable onPress={goHome} style={styles.headerButton} hitSlop={8}>
+                <Text style={[styles.headerButtonText, { color: colors.text }]}>
+                  ⌂
+                </Text>
+              </Pressable>
+            ) : (
+              <View style={styles.headerButton} />
+            )}
           </View>
 
+          {showHomeScreen ? (
+            <ScrollView
+              style={styles.flex}
+              contentContainerStyle={styles.homeContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Image source={brandLogo} style={styles.emptyLogo} />
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                Bible Diary
+              </Text>
+              <Text style={[styles.emptyText, { color: colors.muted }]}>
+                {t("welcomeDesc", language)}
+              </Text>
+
+              <Text
+                style={[styles.suggestionsHeading, { color: colors.accent }]}
+              >
+                {t("suggestedPassages", language)}
+              </Text>
+
+              {verseSuggestionsLoading ? (
+                <View
+                  style={[
+                    styles.dailyVerseCard,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.chip,
+                    },
+                  ]}
+                >
+                  <ActivityIndicator color={colors.accent} size="small" />
+                  <Text
+                    style={[styles.dailyVerseLoadingText, { color: colors.muted }]}
+                  >
+                    {t("verseSuggestionsLoading", language)}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.suggestionGrid}>
+                  {verseSuggestions.map((suggestion) => (
+                    <Pressable
+                      key={suggestion.reference}
+                      onPress={() => handleSend(suggestion.reference)}
+                      style={[
+                        styles.suggestionCard,
+                        {
+                          borderColor: colors.border,
+                          backgroundColor: colors.chip,
+                        },
+                      ]}
+                    >
+                      {suggestion.text ? (
+                        <Text
+                          style={[styles.suggestionCardText, { color: colors.text }]}
+                          numberOfLines={4}
+                        >
+                          {suggestion.text}
+                        </Text>
+                      ) : null}
+                      <Text
+                        style={[styles.dailyVerseRef, { color: colors.accent }]}
+                      >
+                        {suggestion.reference}
+                      </Text>
+                      <Text style={[styles.dailyVerseTap, { color: colors.muted }]}>
+                        {t("dailyVerseTap", language)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+
+              <Pressable
+                onPress={() =>
+                  void refreshVerseSuggestions(
+                    verseSuggestions.map((suggestion) => suggestion.reference),
+                  )
+                }
+                disabled={verseSuggestionsLoading}
+                style={[
+                  styles.suggestMoreButton,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.chip,
+                    opacity: verseSuggestionsLoading ? 0.5 : 1,
+                  },
+                ]}
+              >
+                <Text style={[styles.suggestMoreText, { color: colors.accent }]}>
+                  {t("suggestMore", language)}
+                </Text>
+              </Pressable>
+            </ScrollView>
+          ) : (
           <FlatList
             ref={listRef}
             style={styles.flex}
@@ -711,47 +1064,39 @@ function NativeAppContent({
             onMomentumScrollEnd={handleScrollEnd}
             onScroll={handleMessagesScroll}
             scrollEventThrottle={16}
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Image source={brandLogo} style={styles.emptyLogo} />
-                <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                  Bible Diary
-                </Text>
-                <Text style={[styles.emptyText, { color: colors.muted }]}>
-                  {t("welcomeDesc", language)}
-                </Text>
-                <View style={styles.suggestionWrap}>
-                  {suggestions.map((topic) => (
-                    <Pressable
-                      key={topic}
-                      onPress={() => handleSend(topic)}
-                      style={[
-                        styles.suggestionChip,
-                        {
-                          borderColor: colors.border,
-                          backgroundColor: colors.chip,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[styles.suggestionText, { color: colors.text }]}
-                      >
-                        {topic}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            }
+            ListEmptyComponent={null}
             ListFooterComponent={
               isTranslating || isLoading ? (
-                <View style={styles.loadingRow}>
-                  <ActivityIndicator color="#D4AF37" size="small" />
-                  <Text style={[styles.loadingText, { color: colors.muted }]}>
-                    {isTranslating
-                      ? t("translating", language)
-                      : t("consulting", language)}
-                  </Text>
+                <View style={styles.typingWrap}>
+                  <View style={styles.typingHeader}>
+                    <View
+                      style={[
+                        styles.typingAvatar,
+                        { backgroundColor: colors.accent },
+                      ]}
+                    />
+                    <Text
+                      style={[styles.typingLabel, { color: colors.accent }]}
+                    >
+                      Bible Diary
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.typingBubble,
+                      {
+                        backgroundColor: isDark ? "#111827" : "#ffffff",
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <ActivityIndicator color={colors.accent} size="small" />
+                    <Text style={[styles.typingText, { color: colors.muted }]}>
+                      {isTranslating
+                        ? t("translating", language)
+                        : t("consulting", language)}
+                    </Text>
+                  </View>
                 </View>
               ) : null
             }
@@ -800,6 +1145,7 @@ function NativeAppContent({
               </View>
             )}
           />
+          )}
 
           <View
             style={[
@@ -839,10 +1185,19 @@ function NativeAppContent({
               disabled={isLoading || !input.trim()}
               style={[
                 styles.sendButton,
-                { opacity: isLoading || !input.trim() ? 0.5 : 1 },
+                {
+                  backgroundColor: colors.sendButtonBg,
+                  opacity: isLoading || !input.trim() ? 0.5 : 1,
+                },
               ]}
             >
-              <Text style={styles.sendButtonText}>Send</Text>
+              {isLoading ? (
+                <ActivityIndicator color={colors.sendButtonText} size="small" />
+              ) : (
+                <Text style={[styles.sendButtonText, { color: colors.sendButtonText }]}>
+                  Send
+                </Text>
+              )}
             </Pressable>
           </View>
         </View>
@@ -859,7 +1214,7 @@ function NativeAppContent({
             style={[
               styles.sidebarPanel,
               {
-                backgroundColor: colors.surface,
+                backgroundColor: isDark ? colors.surface : "#FFFFFF",
                 borderRightColor: colors.border,
               },
             ]}
@@ -890,19 +1245,16 @@ function NativeAppContent({
               <Text
                 style={[styles.sidebarSectionLabel, { color: colors.muted }]}
               >
-                Theme
+                {t("themeLabel", language)}
               </Text>
-              <Pressable
-                onPress={toggleTheme}
-                style={[
-                  styles.themeToggle,
-                  { backgroundColor: colors.chip, borderColor: colors.border },
-                ]}
-              >
-                <Text style={[styles.themeToggleText, { color: colors.text }]}>
-                  {isDark ? "☀ Light mode" : "☾ Dark mode"}
-                </Text>
-              </Pressable>
+              <ThemeDropdown
+                value={theme}
+                onChange={changeTheme}
+                language={language}
+                menuOpen={sidebarOpen}
+                onOpenChange={setThemeDropdownOpen}
+                colors={colors}
+              />
             </View>
 
             <View
@@ -961,7 +1313,7 @@ function NativeAppContent({
               data={sessions}
               keyExtractor={(item) => item.id}
               style={styles.sessionList}
-              scrollEnabled={!langDropdownOpen}
+              scrollEnabled={!langDropdownOpen && !themeDropdownOpen}
               contentContainerStyle={
                 sessions.length === 0 ? styles.sessionListEmpty : undefined
               }
@@ -1173,26 +1525,6 @@ function NativeAppContent({
   );
 }
 
-const darkColors = {
-  background: "#0B0C10",
-  surface: "#111827",
-  text: "#F3F4F6",
-  muted: "#9CA3AF",
-  border: "rgba(255,255,255,0.08)",
-  chip: "rgba(255,255,255,0.06)",
-  input: "#1f2937",
-};
-
-const lightColors = {
-  background: "#F4F5F7",
-  surface: "#FFFFFF",
-  text: "#111827",
-  muted: "#6B7280",
-  border: "rgba(0,0,0,0.08)",
-  chip: "#E5E7EB",
-  input: "#F3F4F6",
-};
-
 function markdownStyles(isDark: boolean) {
   return {
     body: {
@@ -1253,14 +1585,96 @@ const styles = StyleSheet.create({
   emptyLogo: { width: 88, height: 88, borderRadius: 44, marginBottom: 12 },
   emptyTitle: { fontSize: 24, fontWeight: "700", marginBottom: 8 },
   emptyText: { textAlign: "center", lineHeight: 22, marginBottom: 20 },
-  suggestionWrap: { width: "100%", gap: 10 },
-  suggestionChip: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+  suggestionWrap: { width: "100%" },
+  homeContent: {
+    padding: 16,
+    paddingBottom: 24,
+    alignItems: "center",
   },
-  suggestionText: { fontSize: 14, lineHeight: 20 },
+  suggestionsHeading: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 12,
+    alignSelf: "stretch",
+    textAlign: "center",
+  },
+  suggestionGrid: {
+    width: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    justifyContent: "space-between",
+  },
+  suggestionCard: {
+    width: "48%",
+    minWidth: 140,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  suggestionCardText: {
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  suggestMoreButton: {
+    width: "100%",
+    marginTop: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  suggestMoreText: {
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  dailyVerseCard: {
+    width: "100%",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 10,
+  },
+  dailyVerseLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  dailyVerseText: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "400",
+  },
+  dailyVerseFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  dailyVerseRef: {
+    fontSize: 14,
+    fontWeight: "700",
+    flexShrink: 1,
+  },
+  dailyVerseTap: {
+    fontSize: 10,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    flexShrink: 0,
+  },
+  dailyVerseLoadingText: {
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: "center",
+  },
   messageBubble: {
     borderRadius: 16,
     padding: 12,
@@ -1283,6 +1697,38 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   loadingText: { fontSize: 13 },
+  typingWrap: { paddingTop: 8, paddingBottom: 4 },
+  typingHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  typingAvatar: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    opacity: 0.9,
+  },
+  typingLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  typingBubble: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    alignSelf: "flex-start",
+    maxWidth: "88%",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    borderTopLeftRadius: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  typingText: { fontSize: 14, flexShrink: 1 },
   composer: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -1301,13 +1747,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   sendButton: {
-    backgroundColor: "#D4AF37",
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginBottom: 2,
   },
-  sendButtonText: { color: "#0B0C10", fontWeight: "700" },
+  sendButtonText: { fontWeight: "700" },
   sidebarOverlay: {
     flex: 1,
     flexDirection: "row",

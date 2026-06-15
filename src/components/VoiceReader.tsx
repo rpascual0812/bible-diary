@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Play, Pause, Square, Volume2, ChevronDown, Activity } from "lucide-react";
 import { cn } from "../lib/utils";
-import { LangType } from "../App";
+import type { LangType } from "../types";
+import type { ThemeId } from "../theme";
+import { isDarkTheme } from "../theme";
 
 interface VoiceReaderProps {
   text: string;
   language: LangType;
-  theme: "dark" | "light";
+  theme: ThemeId;
 }
 
 function cleanMarkdownForSpeech(mdText: string): string {
@@ -45,7 +47,7 @@ export function VoiceReader({ text, language, theme }: VoiceReaderProps) {
   // Store speech instance to monitor
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  const isDark = theme === "dark";
+  const isDark = isDarkTheme(theme);
 
   // Load voices dynamically on boot & handle voices changed event callback
   useEffect(() => {

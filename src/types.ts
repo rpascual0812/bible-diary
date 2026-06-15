@@ -7,4 +7,6 @@ export interface ChatSession {
   title: string;
   messages: Message[];
   created_at: number;
+  /** Language the stored title and messages are written in. */
+  language?: LangType;
 }

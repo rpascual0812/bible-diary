@@ -15,27 +15,45 @@ import {
   Languages,
   Menu,
   MessageSquare,
-  Search,
   Plus,
   Trash2,
   Pencil,
   Wifi,
   WifiOff,
   Globe,
-  Sun,
-  Moon,
   Heart,
   Key,
   Download,
   Upload,
+  Loader2,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { GeminiService, Message } from "./services/geminiService";
 import { cn, formatTime } from "./lib/utils";
 import { getOfflineAnswer } from "./data/offlineBibleData";
 import { LanguageDropdown } from "./components/LanguageDropdown";
+import { ThemeDropdown } from "./components/ThemeDropdown";
 import { BibleVerseReader } from "./components/BibleVerseReader";
-import { detectBibleVerse } from "./lib/bibleVerse";
+import {
+  getRootClassName,
+  getSplashClassName,
+  isDarkTheme,
+  isFloralTheme,
+  normalizeTheme,
+  type ThemeId,
+} from "./theme";
+import { useOnlineStatus } from "./lib/useOnlineStatus";
+import {
+  loadVerseSuggestions,
+  pickRandomVerseReferences,
+  SUGGESTION_COUNT,
+  type VerseSuggestion,
+} from "./lib/verseSuggestions";
+import {
+  handleChatBackPress,
+  pickFallbackSessionId,
+  sessionHasMessages,
+} from "./lib/chatNavigation";
 import { mergeImportedSessions } from "./lib/conversationBackup";
 import {
   exportConversationsWeb,
@@ -43,11 +61,15 @@ import {
 } from "./lib/conversationExportWeb";
 import { VoiceReader } from "./components/VoiceReader";
 import { DonationModal } from "./components/DonationModal";
-import { BAKED_GEMINI_API_KEY } from "./config/apiKey";
+import { resolveGeminiApiKey } from "./config/apiKey";
+import {
+  isGeminiQuotaError,
+  resolveGeminiChatErrorMessage,
+} from "./lib/geminiErrors";
 import type { LangType } from "./types";
 import {
-  translateMessages,
-  translateText,
+  sessionNeedsTranslation,
+  translateChatSession,
 } from "./services/translationService";
 
 export type { LangType };
@@ -62,151 +84,8 @@ export interface ChatSession {
   title: string;
   messages: Message[];
   created_at: number;
+  language?: LangType;
 }
-
-const ALL_TOPICS = [
-  "What does scripture say about peace?",
-  "Tell me the story of Melchizedek.",
-  "Explain the Sermon on the Mount.",
-  "What does the Bible say about hope?",
-  "Who was Queen Esther and how did she save her people?",
-  "Explain the profound meaning of Psalm 23.",
-  "What does the Bible teach about sacrificial love (Agape)?",
-  "How is faith explained in Hebrews chapter 11?",
-  "Tell me the story of Elijah on Mount Carmel.",
-  "What can we learn from the Parable of the Prodigal Son?",
-  "Summarize the major covenant promises to Abraham.",
-  "What are the fruits of the Spirit in Galatians 5?",
-  "Explain the significance of the Gospel story.",
-];
-
-const ALL_TOPICS_FIL = [
-  "Ano ang sinasabi ng kasulatan tungkol sa kapayapaan?",
-  "Ikwento sa akon ang buhay ni Melquisedek.",
-  "Ipaliwanag ang Sermon sa Bundok sa Mateo.",
-  "Ano ang sinasabi ng Bibliya tungkol sa pag-asa?",
-  "Sino si Reyna Ester at paano niya iniligtas ang kanyang lahi?",
-  "Ipaliwanag ang malalim na kahulugan ng Salmo 23.",
-  "Ano ang itinuturo ng Bibliya tungkol sa tapat na pag-ibig?",
-  "Paano ipinaliwanag ang pananampalataya sa Hebreo kabanata 11?",
-  "Ikwento sa akin ang tungkol kay Elias sa Bundok ng Carmelo.",
-  "Ano ang matututunan natin sa Talinghaga ng Nawawalang Anak?",
-  "Ibuod ang mga pangako ng kasunduan ng Diyos kay Abraham.",
-  "Ano ang naging mga bunga ng Espiritu Santo sa Galacia 5?",
-  "Ipaliwanag ang kahalagahan ng Ebanghelyo ni Kristo Hesus.",
-];
-
-const ALL_TOPICS_CEB = [
-  "Unsay giingon sa kasulatan bahin sa kalinaw?",
-  "Isubay kanako ang sugilanon mahitungod kang Melquisedec.",
-  "Ipapatin-aw ang Sermon sa Bukid ni Mateo.",
-  "Unsay giingon sa Bibliya bahin sa paglaum?",
-  "Kinsa si Rayna Ester ug sa unsang paagi niya naluwas ang iyang katawhan?",
-  "Ipapatin-aw ang lawom nga kahulugan sa Salmo 23.",
-  "Unsay gitudlo sa Bibliya bahin sa sakripisyong gugma?",
-  "Giunsa pagpatin-aw ang pagtuo sa Hebreohanon kapitulo 11?",
-  "Iasoy kanako ang mahitungod kang Elias sa Bukid sa Carmelo.",
-  "Unsay atong makat-unan sa Parabula sa Nawalang Anak?",
-  "I-summarize ang mahinungdanong mga saad sa kasabotan ngadto kang Abraham.",
-  "Unsa ang mga bunga sa Espiritu sa Galacia 5?",
-  "Ikapatin-aw ang kahulugan sa Ebanghelyo ni Hesukristo.",
-];
-
-const ALL_TOPICS_BIK = [
-  "Ano an sinasabi kan kasuratan manungod sa katoninongan?",
-  "I-storya sako an buhay ni Melquisedec.",
-  "Ipaliwanag an Sermon sa Bukid sa Mateo.",
-  "Ano an sinasabi kan Biblia manungod sa paglaom?",
-  "Siisay si Reyna Ester asin pano niya iniligtas an saiyang kapwa?",
-  "Ipaliwanag an malolobong kahulugan kan Salmo 23.",
-  "Ano an itinutukdo kan Biblia manungod sa pagsakripisyong pagkamoot-Agape?",
-  "Pano ipinaliwanag an pagtubod sa Hebreo kabanata 11?",
-  "I-storya sako an manungod ki Elias sa Bukid kan Carmelo.",
-  "Ano an satong manonodan sa Talinhaga kan Nawalang Aki?",
-  "Ibuod an mga pangako kan tipan nin Dios ki Abraham.",
-  "Ano an mga bunga kan Espiritu Santo sa Galacia 5?",
-  "Ipaliwanag an kahalagahan kan Ebanghelyo ni Cristo Hesus.",
-];
-
-const ALL_TOPICS_ILO = [
-  "Ania ti ibagbaga ti kasuratan maipanggep iti katalnaan?",
-  "Saritaem kaniak ti maipanggep ken Melquisedec.",
-  "Ipalawagmo ti Sermon iti Bantay ti Mateo.",
-  "Ania ti ibagbaga ti Biblia maipanggep iti namnama?",
-  "Siasino ni Reyna Ester ken kasano a sinalakanna ti ilina?",
-  "Ipalawag ti nauneg a kaipapanan ti Salmo 23.",
-  "Ania ti isursuro ti Biblia maipanggep iti ayat a managsakripisio (Agape)?",
-  "Kasano a nailawag ti pammati iti Hebreo kabanata 11?",
-  "Ipadamag kaniak ti maipanggep ken Elias sadi Bantay Carmelo.",
-  "Ania ti masursurotayo iti Parabola ti No Nagawid nga Anak?",
-  "Ibuod ti maipanggep kadagiti tulag ti Dios ken Abraham.",
-  "Ania dagiti bunga ti Espiritu Santo iti Galacia 5?",
-  "Ipalawag ti pateg ti Ebanghelyo ni Jesucristo.",
-];
-
-const ALL_TOPICS_HIL = [
-  "Ano ang ginasiling sang kasuratan nahanungod sa paghidait?",
-  "Isugid sa akon ang sugilanon nahanungod kay Melquisedec.",
-  "Ipaathag ang Sermon sa Bukid sa Mateo.",
-  "Ano ang ginasiling sang Biblia nahanungod sa paglaum?",
-  "Sin-o si Reyna Ester kag paano niya ginluwas ang iya kapungsuran?",
-  "Ipaathag ang madalom nga kahulugan sang Salmo 23.",
-  "Ano ang ginatudlo sang Biblia nahanungod sa gugma nga nagasandig (Agape)?",
-  "Paano ginasaysay ang pagtuo sa Hebreo kapitulo 11?",
-  "Isugid sa akon ang sugilanon nahanungod kay Elias sa Bukid sang Carmelo.",
-  "Ano ang aton matun-an sa Paraliko sang Nadula nga Anak?",
-  "I-summarize ang mga mabinantayon nga saad sang Dios kay Abraham.",
-  "Ano ang mga bunga sang Espiritu Santo sa Galacia 5?",
-  "Ipaathag ang importansya sang Ebanghelyo ni Hesukristo.",
-];
-
-const ALL_TOPICS_ES = [
-  "¿Qué dice la Escritura sobre la paz?",
-  "Cuéntame la historia de Melquisedec.",
-  "Explica el Sermón del Monte.",
-  "¿Qué dice la Biblia sobre la esperanza?",
-  "¿Quién fue la reina Ester y cómo salvó a su pueblo?",
-  "Explica el profundo significado del Salmo 23.",
-  "¿Qué enseña la Biblia sobre el amor sacrificial (Ágape)?",
-  "¿Cómo se explica la fe en Hebreos capítulo 11?",
-  "Cuéntame la historia de Elías en el monte Carmelo.",
-  "¿Qué podemos aprender de la Parábola del Hijo Pródigo?",
-  "Resume las principales promesas del pacto con Abraham.",
-  "¿Cuáles son los frutos del Espíritu en Gálatas 5?",
-  "Explica la importancia del Evangelio de Jesucristo.",
-];
-
-const ALL_TOPICS_LA = [
-  "Quid Scriptura de pace dicit?",
-  "Narra mihi historiam Melchisedec.",
-  "Explica Sermonem in Monte.",
-  "Quid Biblia de spe docet?",
-  "Quae fuit regina Esther et quomodo populum suum servavit?",
-  "Explica profundum sensum Psalmi 23.",
-  "Quid Biblia de amore sacrificiali (Agape) docet?",
-  "Quomodo fides in Epistula ad Hebraeos capite 11 explicatur?",
-  "Narra mihi de Elia in monte Carmelo.",
-  "Quid ex Parabola Filii Prodigi discimus?",
-  "Resume praecipua foederis promissa Abrahae.",
-  "Quae sunt fructus Spiritus in Epistula ad Galatas 5?",
-  "Explica momenti Evangelii Iesu Christi.",
-];
-
-const ALL_TOPICS_EL = [
-  "Τι λέει η Γραφή για την ειρήνη;",
-  "Διήγησέ μου την ιστορία του Μελχισεδέκ.",
-  "Εξήγησε το Όρος του Σερμόν.",
-  "Τι λέει η Βίβλος για την ελπίδα;",
-  "Ποια ήταν η βασίλισσα Εσθήρ και πώς έσωσε τον λαό της;",
-  "Εξήγησε το βαθύ νόημα του Ψαλμού 23.",
-  "Τι διδάσκει η Βίβλος για την θυσιαστική αγάπη (Αγάπη);",
-  "Πώς εξηγείται η πίστη στο Εβραίους κεφάλαιο 11;",
-  "Διήγησέ μου την ιστορία του Ηλία στο όρος Καρμήλ.",
-  "Τι μαθαίνουμε από την Παραβολή του Ασώτου;",
-  "Σύνοψε τις κύριες διαθηκικές υποσχέσεις στον Αβραάμ.",
-  "Ποια είναι τα καρποί του Πνεύματος στο Γαλάτες 5;",
-  "Εξήγησε τη σημασία του Ευαγγελίου του Χριστού.",
-];
 
 const getUiTranslation = (key: string, lang: LangType) => {
   const dicts: Record<string, Record<string, string>> = {
@@ -252,6 +131,116 @@ const getUiTranslation = (key: string, lang: LangType) => {
       bik: "Wika nin Pag-adal",
       ilo: "Pagsasao ti Panag-adal",
       hil: "Hambal sang Pagtuon",
+    },
+    themeLabel: {
+      en: "App Theme",
+      fil: "Tema ng App",
+      ceb: "Tema sa App",
+      bik: "Tema kan App",
+      ilo: "Tema ti App",
+      hil: "Tema sang App",
+      es: "Tema de la app",
+      la: "Thema applicationis",
+      el: "Θέμα εφαρμογής",
+    },
+    themeLight: {
+      en: "Light",
+      fil: "Light",
+      ceb: "Light",
+      bik: "Light",
+      ilo: "Light",
+      hil: "Light",
+      es: "Claro",
+      la: "Lucidum",
+      el: "Φωτεινό",
+    },
+    themeDark: {
+      en: "Dark",
+      fil: "Dark",
+      ceb: "Dark",
+      bik: "Dark",
+      ilo: "Dark",
+      hil: "Dark",
+      es: "Oscuro",
+      la: "Obscurum",
+      el: "Σκοτεινό",
+    },
+    themeFloralVerdant: {
+      en: "Verdant Canticle",
+      fil: "Verdant Canticle",
+      ceb: "Verdant Canticle",
+      bik: "Verdant Canticle",
+      ilo: "Verdant Canticle",
+      hil: "Verdant Canticle",
+      es: "Cántico Verde",
+      la: "Canticum Viride",
+      el: "Πράσινο Άσμα",
+    },
+    themeFloralBlush: {
+      en: "Blush Benediction",
+      fil: "Blush Benediction",
+      ceb: "Blush Benediction",
+      bik: "Blush Benediction",
+      ilo: "Blush Benediction",
+      hil: "Blush Benediction",
+      es: "Bendición Rosada",
+      la: "Benedictio Rosea",
+      el: "Ροζ Ευλογία",
+    },
+    themeFloralLavender: {
+      en: "Lavender Liturgy",
+      fil: "Lavender Liturgy",
+      ceb: "Lavender Liturgy",
+      bik: "Lavender Liturgy",
+      ilo: "Lavender Liturgy",
+      hil: "Lavender Liturgy",
+      es: "Liturgia Lavanda",
+      la: "Liturgia Lavendulae",
+      el: "Λειτουργία Λεβάντας",
+    },
+    themeFloralAmber: {
+      en: "Amber Alleluia",
+      fil: "Amber Alleluia",
+      ceb: "Amber Alleluia",
+      bik: "Amber Alleluia",
+      ilo: "Amber Alleluia",
+      hil: "Amber Alleluia",
+      es: "Aleluya Ámbar",
+      la: "Alleluia Aurea",
+      el: "Κεχριμπαρένιο Αλληλούια",
+    },
+    themeFloralAzure: {
+      en: "Azure Canticle",
+      fil: "Azure Canticle",
+      ceb: "Azure Canticle",
+      bik: "Azure Canticle",
+      ilo: "Azure Canticle",
+      hil: "Azure Canticle",
+      es: "Cántico Azul",
+      la: "Canticum Caeruleum",
+      el: "Γαλάζιο Άσμα",
+    },
+    themeFloralCrimson: {
+      en: "Scarlet Sanctus",
+      fil: "Scarlet Sanctus",
+      ceb: "Scarlet Sanctus",
+      bik: "Scarlet Sanctus",
+      ilo: "Scarlet Sanctus",
+      hil: "Scarlet Sanctus",
+      es: "Sánctus Escarlata",
+      la: "Sanctus Coccineus",
+      el: "Κόκκινο Άγιο",
+    },
+    themeFloralNavy: {
+      en: "Indigo Invocatio",
+      fil: "Indigo Invocatio",
+      ceb: "Indigo Invocatio",
+      bik: "Indigo Invocatio",
+      ilo: "Indigo Invocatio",
+      hil: "Indigo Invocatio",
+      es: "Invocatio Índigo",
+      la: "Invocatio Indica",
+      el: "Ινδικό Επίκληση",
     },
     demoTitle: {
       en: "Demo Testing",
@@ -460,6 +449,17 @@ const getUiTranslation = (key: string, lang: LangType) => {
       ilo: "Scribe Cloud Aktibo",
       hil: "Scribe Cloud Aktibo",
     },
+    cloudQuotaActive: {
+      en: "Cloud AI limit reached",
+      fil: "Naabot ang limit ng Cloud AI",
+      ceb: "Naabot ang limit sa Cloud AI",
+      bik: "Naabot an limit kan Cloud AI",
+      ilo: "Naabot ti limit ti Cloud AI",
+      hil: "Naabot ang limit sang Cloud AI",
+      es: "Límite de Cloud AI alcanzado",
+      la: "Finis limitis Cloud AI",
+      el: "Έφτασε το όριο Cloud AI",
+    },
     closeStudy: {
       en: "Close Study",
       fil: "Isara",
@@ -499,6 +499,72 @@ const getUiTranslation = (key: string, lang: LangType) => {
       bik: "Gabay sa Pagtatanong",
       ilo: "Tarabay ti Saludsod",
       hil: "Giya sa Pamangkot",
+    },
+    dailyVerseLabel: {
+      en: "Verse of the Day",
+      fil: "Talata ng Araw",
+      ceb: "Bersikulo sa Adlaw",
+      bik: "Talata kan Aldaw",
+      ilo: "Bersikulo ti Aldaw",
+      hil: "Bersikulo sang Adlaw",
+      es: "Versículo del día",
+      la: "Versus diei",
+      el: "Εδάφιο της ημέρας",
+    },
+    dailyVerseLoading: {
+      en: "Loading today's verse…",
+      fil: "Kinukuha ang talata ngayong araw…",
+      ceb: "Gikuha ang bersikulo karong adlawa…",
+      bik: "Kinukuha an talata ngonian na aldaw…",
+      ilo: "Agik-ikkan ti bersikulo ita nga aldaw…",
+      hil: "Ginakuha ang bersikulo subong nga adlaw…",
+      es: "Cargando el versículo de hoy…",
+      la: "Versus hodiernus oneratur…",
+      el: "Φόρτωση σημερινού εδαφίου…",
+    },
+    dailyVerseTap: {
+      en: "Tap to study this passage",
+      fil: "I-tap para pag-aralan ang talatang ito",
+      ceb: "I-tap aron tun-an kining bersikulo",
+      bik: "I-tap para pag-aralan an talata",
+      ilo: "I-tap tapno adalen daytoy a bersikulo",
+      hil: "I-tap para pagtuonon ini nga bersikulo",
+      es: "Toca para estudiar este pasaje",
+      la: "Tange ut hunc locum studias",
+      el: "Πατήστε για μελέτη αυτού του εδαφίου",
+    },
+    suggestedPassages: {
+      en: "Suggested passages",
+      fil: "Mga iminumungkahing talata",
+      ceb: "Gisugyot nga mga bersikulo",
+      bik: "Mga sugeridong talata",
+      ilo: "Dagiti masugestan a bersikulo",
+      hil: "Ginasugyot nga mga bersikulo",
+      es: "Pasajes sugeridos",
+      la: "Loca suggesta",
+      el: "Προτεινόμενα εδάφια",
+    },
+    verseSuggestionsLoading: {
+      en: "Loading suggestions…",
+      fil: "Kinukuha ang mga mungkahi…",
+      ceb: "Gikuha ang mga sugyot…",
+      bik: "Kinukuha an mga suhestyon…",
+      ilo: "Agik-ikkan dagiti singasing…",
+      hil: "Ginakuha ang mga sugyot…",
+      es: "Cargando sugerencias…",
+      la: "Suggestiones onerantur…",
+      el: "Φόρτωση προτάσεων…",
+    },
+    suggestMore: {
+      en: "Suggest more",
+      fil: "Magmungkahi pa",
+      ceb: "Mag-sugyot pa",
+      bik: "Mag-sugyot pa",
+      ilo: "Agmangmangnga pay",
+      hil: "Mag-sugyot pa",
+      es: "Sugerir más",
+      la: "Plura sugger",
+      el: "Περισσότερες προτάσεις",
     },
     offlineSummaryTitle: {
       en: "Offline Capabilities Built-In",
@@ -600,27 +666,28 @@ export default function App() {
     }
   });
 
-  // Theme state ('dark' | 'light')
-  const [theme, setTheme] = useState<"dark" | "light">(() => {
+  // Theme state
+  const [theme, setTheme] = useState<ThemeId>(() => {
     try {
-      return (
-        (localStorage.getItem("biblesphere_theme") as "dark" | "light") ||
-        "light"
-      );
+      return normalizeTheme(localStorage.getItem("biblesphere_theme"));
     } catch (e) {
       return "light";
     }
   });
 
-  const toggleTheme = () => {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    localStorage.setItem("biblesphere_theme", nextTheme);
+  const changeTheme = (next: ThemeId) => {
+    setTheme(next);
+    localStorage.setItem("biblesphere_theme", next);
   };
 
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
+
   // State for offline support
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const isOnline = useOnlineStatus();
   const [forceOffline, setForceOffline] = useState(false); // To test offline mode on the fly
+  const [cloudQuotaExceeded, setCloudQuotaExceeded] = useState(false);
 
   // Splash screen state
   const [showSplash, setShowSplash] = useState(true);
@@ -681,6 +748,8 @@ export default function App() {
     }
   });
 
+  const [showHomeScreen, setShowHomeScreen] = useState(true);
+
   // Load robust durable IndexedDB backups on startup
   useEffect(() => {
     let active = true;
@@ -709,9 +778,12 @@ export default function App() {
 
             const currentActive = localStorage.getItem("biblesphere_active_id");
             const stillExists = storedDB.some((s) => s.id === currentActive);
-            if (!stillExists && storedDB.length > 0) {
-              setActiveSessionId(storedDB[0].id);
-              localStorage.setItem("biblesphere_active_id", storedDB[0].id);
+            const nextActive = stillExists
+              ? currentActive
+              : pickFallbackSessionId(storedDB) ?? storedDB[0]?.id ?? null;
+            if (nextActive && nextActive !== currentActive) {
+              setActiveSessionId(nextActive);
+              localStorage.setItem("biblesphere_active_id", nextActive);
             }
           }
         } else if (sessions.length > 0) {
@@ -748,7 +820,10 @@ export default function App() {
     }
   });
 
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [verseSuggestions, setVerseSuggestions] = useState<VerseSuggestion[]>(
+    [],
+  );
+  const [verseSuggestionsLoading, setVerseSuggestionsLoading] = useState(true);
 
   // Dynamic visual layout height state to avoid being cut off or behind the mobile keyboard
   const [viewportHeight, setViewportHeight] = useState<string>("100vh");
@@ -790,6 +865,16 @@ export default function App() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
+  const sessionsRef = useRef(sessions);
+  const languageRef = useRef(language);
+  const activeSessionIdRef = useRef(activeSessionId);
+  const showHomeScreenRef = useRef(showHomeScreen);
+  const translateOnOpenRef = useRef<(sessionId: string) => void>(() => {});
+  const translatingSessionRef = useRef<string | null>(null);
+  sessionsRef.current = sessions;
+  languageRef.current = language;
+  activeSessionIdRef.current = activeSessionId;
+  showHomeScreenRef.current = showHomeScreen;
   const lastScrollTop = useRef(0);
   const dragStartScrollTop = useRef(0);
   const isDraggingScroll = useRef(false);
@@ -829,27 +914,9 @@ export default function App() {
     }
   }, []);
 
-  // Monitor network status
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
-
   // Initialize/Configure Gemini Service based on key/language preference
   useEffect(() => {
-    const envKey = process.env.GEMINI_API_KEY;
-    const finalKey =
-      (typeof BAKED_GEMINI_API_KEY !== "undefined"
-        ? BAKED_GEMINI_API_KEY.trim()
-        : "") || (envKey ? envKey.trim() : "");
+    const finalKey = resolveGeminiApiKey();
     if (finalKey) {
       geminiRef.current = new GeminiService(finalKey, language);
     } else {
@@ -857,33 +924,186 @@ export default function App() {
     }
   }, [language]);
 
-  // Randomize suggestion chips on activeSessionId change or language switch
-  useEffect(() => {
-    let topicsList = ALL_TOPICS;
-    if (language === "fil") {
-      topicsList = ALL_TOPICS_FIL;
-    } else if (language === "ceb") {
-      topicsList = ALL_TOPICS_CEB;
-    } else if (language === "bik") {
-      topicsList = ALL_TOPICS_BIK;
-    } else if (language === "ilo") {
-      topicsList = ALL_TOPICS_ILO;
-    } else if (language === "hil") {
-      topicsList = ALL_TOPICS_HIL;
-    } else if (language === "es") {
-      topicsList = ALL_TOPICS_ES;
-    } else if (language === "la") {
-      topicsList = ALL_TOPICS_LA;
-    } else if (language === "el") {
-      topicsList = ALL_TOPICS_EL;
+  const chatHistoryTrapped = useRef(false);
+
+  const refreshVerseSuggestions = useCallback(async (exclude: string[] = []) => {
+    setVerseSuggestionsLoading(true);
+    const references = pickRandomVerseReferences(SUGGESTION_COUNT, exclude);
+    try {
+      const loaded = await loadVerseSuggestions(references);
+      setVerseSuggestions(loaded);
+    } catch {
+      setVerseSuggestions(
+        references.map((reference) => ({ reference, text: "" })),
+      );
+    } finally {
+      setVerseSuggestionsLoading(false);
     }
-    const shuffled = [...topicsList].sort(() => 0.5 - Math.random());
-    setSuggestions(shuffled.slice(0, 4));
-  }, [activeSessionId, language]);
+  }, []);
+
+  useEffect(() => {
+    void refreshVerseSuggestions();
+  }, [refreshVerseSuggestions]);
 
   // Scroll to bottom on new messages
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const messages = activeSession ? activeSession.messages : [];
+
+  const goHome = useCallback(() => {
+    setShowHomeScreen(true);
+    setIsSidebarOpen(false);
+    chatHistoryTrapped.current = false;
+  }, []);
+
+  const selectSession = useCallback(
+    (id: string, recordHistory = false) => {
+      setActiveSessionId(id);
+      localStorage.setItem("biblesphere_active_id", id);
+      setShowHomeScreen(false);
+      if (
+        recordHistory &&
+        typeof window !== "undefined" &&
+        sessionHasMessages(sessions, id)
+      ) {
+        window.history.pushState(
+          { sessionId: id, inChat: true },
+          "",
+          window.location.href,
+        );
+      }
+      if (windowWidth < 1024) {
+        setIsSidebarOpen(false);
+      }
+      translateOnOpenRef.current(id);
+    },
+    [sessions, windowWidth],
+  );
+
+  const runBackNavigation = useCallback(() => {
+    if (isDonationModalOpen) {
+      setIsDonationModalOpen(false);
+      return true;
+    }
+
+    return handleChatBackPress(
+      {
+        sessions,
+        activeSessionId,
+        sidebarOpen: isSidebarOpen,
+        renameOpen: renameSessionId !== null,
+        deleteOpen: deleteSessionId !== null,
+        showHomeScreen,
+      },
+      {
+        openSidebar: () => setIsSidebarOpen(true),
+        closeSidebar: () => setIsSidebarOpen(false),
+        closeRename: () => {
+          setRenameSessionId(null);
+          setRenameDraft("");
+        },
+        closeDelete: () => setDeleteSessionId(null),
+        selectSession: (id) => selectSession(id, false),
+        goHome,
+      },
+    );
+  }, [
+    sessions,
+    activeSessionId,
+    isSidebarOpen,
+    renameSessionId,
+    deleteSessionId,
+    isDonationModalOpen,
+    showHomeScreen,
+    selectSession,
+    goHome,
+  ]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onPopState = (event: PopStateEvent) => {
+      const state = event.state as {
+        sessionId?: string;
+        inChat?: boolean;
+      } | null;
+      const currentSessions = sessionsRef.current;
+      const currentActiveId = activeSessionIdRef.current;
+
+      if (
+        state?.sessionId &&
+        sessionHasMessages(currentSessions, state.sessionId)
+      ) {
+        setActiveSessionId(state.sessionId);
+        localStorage.setItem("biblesphere_active_id", state.sessionId);
+        setShowHomeScreen(false);
+      } else if (
+        sessionHasMessages(currentSessions, currentActiveId) ||
+        currentSessions.some((session) => session.messages.length > 0)
+      ) {
+        setShowHomeScreen(false);
+      }
+
+      if (!runBackNavigation()) return;
+
+      const trapSessionId =
+        activeSessionIdRef.current ??
+        state?.sessionId ??
+        pickFallbackSessionId(currentSessions);
+      window.history.pushState(
+        { sessionId: trapSessionId, inChat: true },
+        "",
+        window.location.href,
+      );
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [runBackNavigation]);
+
+  // Intercept browser swipe-back while viewing a conversation
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const inChat =
+      !showHomeScreen &&
+      (sessionHasMessages(sessions, activeSessionId) ||
+        sessions.some((session) => session.messages.length > 0));
+
+    if (!inChat) {
+      chatHistoryTrapped.current = false;
+      return;
+    }
+    if (chatHistoryTrapped.current) return;
+
+    window.history.pushState(
+      { sessionId: activeSessionId, inChat: true },
+      "",
+      window.location.href,
+    );
+    chatHistoryTrapped.current = true;
+  }, [showHomeScreen, sessions, activeSessionId]);
+
+  // Restore chat state when returning from bfcache (iOS swipe-back)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      try {
+        const saved = localStorage.getItem("biblesphere_sessions");
+        const parsed: ChatSession[] = saved ? JSON.parse(saved) : [];
+        const activeId = localStorage.getItem("biblesphere_active_id");
+        setSessions(parsed);
+        setActiveSessionId(activeId);
+        setShowHomeScreen(true);
+      } catch {
+        // ignore
+      }
+    };
+
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -903,6 +1123,60 @@ export default function App() {
     });
   };
 
+  const getTranslationApiKey = useCallback(() => resolveGeminiApiKey(), []);
+
+  const translateSessionToCurrentLanguage = useCallback(
+    async (sessionId: string, targetLang: LangType = language) => {
+      if (translatingSessionRef.current === sessionId) return;
+
+      const session = sessionsRef.current.find((s) => s.id === sessionId);
+      if (!session || !sessionNeedsTranslation(session, targetLang)) return;
+
+      const apiKey = getTranslationApiKey();
+      if (!apiKey || !isOnline || forceOffline) return;
+
+      translatingSessionRef.current = sessionId;
+      setIsTranslating(true);
+      try {
+        const translated = await translateChatSession(
+          apiKey,
+          session,
+          targetLang,
+        );
+        saveSessions(
+          sessionsRef.current.map((s) =>
+            s.id === sessionId ? translated : s,
+          ),
+        );
+      } catch (error) {
+        console.error("Translation failed:", error);
+        if (isGeminiQuotaError(error)) {
+          setCloudQuotaExceeded(true);
+        }
+      } finally {
+        translatingSessionRef.current = null;
+        setIsTranslating(false);
+      }
+    },
+    [language, isOnline, forceOffline, getTranslationApiKey],
+  );
+
+  useEffect(() => {
+    translateOnOpenRef.current = (sessionId: string) => {
+      void translateSessionToCurrentLanguage(sessionId, languageRef.current);
+    };
+  }, [translateSessionToCurrentLanguage]);
+
+  useEffect(() => {
+    if (!activeSessionId || showHomeScreen) return;
+    void translateSessionToCurrentLanguage(activeSessionId, language);
+  }, [
+    activeSessionId,
+    showHomeScreen,
+    language,
+    translateSessionToCurrentLanguage,
+  ]);
+
   const handleLanguageChange = async (newLang: LangType) => {
     if (newLang === language) return;
 
@@ -911,35 +1185,31 @@ export default function App() {
     geminiRef.current?.setLanguage(newLang);
 
     const session = sessions.find((s) => s.id === activeSessionId);
-    if (!session?.messages.length) return;
+    if (!session) return;
 
-    const envKey = process.env.GEMINI_API_KEY;
-    const apiKey =
-      (typeof BAKED_GEMINI_API_KEY !== "undefined"
-        ? BAKED_GEMINI_API_KEY.trim()
-        : "") || (envKey ? envKey.trim() : "");
+    if (!session.messages.length) {
+      saveSessions(
+        sessions.map((s) =>
+          s.id === activeSessionId ? { ...s, language: newLang } : s,
+        ),
+      );
+      return;
+    }
+
+    const apiKey = getTranslationApiKey();
     if (!apiKey || !isOnline || forceOffline) return;
 
     setIsTranslating(true);
     try {
-      const translatedMessages = await translateMessages(
-        apiKey,
-        session.messages,
-        newLang,
+      const translated = await translateChatSession(apiKey, session, newLang);
+      saveSessions(
+        sessions.map((s) => (s.id === activeSessionId ? translated : s)),
       );
-      const translatedTitle = await translateText(
-        apiKey,
-        session.title,
-        newLang,
-      );
-      const updated = sessions.map((s) =>
-        s.id === activeSessionId
-          ? { ...s, title: translatedTitle, messages: translatedMessages }
-          : s,
-      );
-      saveSessions(updated);
     } catch (error) {
       console.error("Translation failed:", error);
+      if (isGeminiQuotaError(error)) {
+        setCloudQuotaExceeded(true);
+      }
     } finally {
       setIsTranslating(false);
     }
@@ -956,11 +1226,14 @@ export default function App() {
         : defaultTitle,
       messages: [],
       created_at: Date.now(),
+      language,
     };
     const updated = [newSession, ...sessions];
     saveSessions(updated);
     setActiveSessionId(newId);
     localStorage.setItem("biblesphere_active_id", newId);
+    setShowHomeScreen(false);
+    chatHistoryTrapped.current = false;
     return newId;
   };
 
@@ -979,12 +1252,16 @@ export default function App() {
     const updated = sessions.filter((s) => s.id !== id);
     saveSessions(updated);
     if (activeSessionId === id) {
-      const nextActive = updated.length > 0 ? updated[0].id : null;
+      const nextActive =
+        updated.length > 0
+          ? pickFallbackSessionId(updated) ?? updated[0].id
+          : null;
       setActiveSessionId(nextActive);
       if (nextActive) {
         localStorage.setItem("biblesphere_active_id", nextActive);
       } else {
         localStorage.removeItem("biblesphere_active_id");
+        setShowHomeScreen(true);
       }
     }
     setDeleteSessionId(null);
@@ -1063,12 +1340,14 @@ export default function App() {
     const textToSend = customText ? customText.trim() : input.trim();
     if (!textToSend || isLoading) return;
 
+    setIsLoading(true);
+    setInput("");
+
     let sessionId = activeSessionId;
     let sList = [...sessions];
     let currentSession = sList.find((s) => s.id === sessionId);
 
-    // Create session if none active or existing session belongs elsewhere
-    if (!currentSession) {
+    if (showHomeScreen) {
       const newId = "session_" + Date.now();
       currentSession = {
         id: newId,
@@ -1076,6 +1355,19 @@ export default function App() {
           textToSend.substring(0, 32) + (textToSend.length > 32 ? "..." : ""),
         messages: [],
         created_at: Date.now(),
+        language,
+      };
+      sList = [currentSession, ...sList];
+      sessionId = newId;
+    } else if (!currentSession) {
+      const newId = "session_" + Date.now();
+      currentSession = {
+        id: newId,
+        title:
+          textToSend.substring(0, 32) + (textToSend.length > 32 ? "..." : ""),
+        messages: [],
+        created_at: Date.now(),
+        language,
       };
       sList = [currentSession, ...sList];
       sessionId = newId;
@@ -1083,6 +1375,7 @@ export default function App() {
       // Set name from first query
       currentSession.title =
         textToSend.substring(0, 32) + (textToSend.length > 32 ? "..." : "");
+      currentSession.language = language;
     }
 
     const userMsg: Message = {
@@ -1092,34 +1385,34 @@ export default function App() {
     };
 
     currentSession.messages = [...currentSession.messages, userMsg];
+    if (
+      currentSession.language == null ||
+      currentSession.language === language
+    ) {
+      currentSession.language = language;
+    }
     saveSessions(sList);
     setActiveSessionId(sessionId);
     localStorage.setItem("biblesphere_active_id", sessionId!);
-    setInput("");
-    setIsLoading(true);
+    const enteringChat = showHomeScreen;
+    setShowHomeScreen(false);
+    if (enteringChat && typeof window !== "undefined") {
+      window.history.pushState(
+        { sessionId, inChat: true },
+        "",
+        window.location.href,
+      );
+      chatHistoryTrapped.current = true;
+    }
 
     try {
       let aiText = "";
-      if (!currentOnlineStatus) {
-        // Evaluate with offline search indexing
-        aiText = getOfflineAnswer(textToSend, language);
-      } else if (geminiRef.current) {
+      if (geminiRef.current && currentOnlineStatus) {
         aiText = await geminiRef.current.sendMessage(textToSend);
+      } else if (!currentOnlineStatus) {
+        aiText = getOfflineAnswer(textToSend, language);
       } else {
-        // Fallback if key missing
-        if (language === "fil") {
-          aiText = `## Naka-activate ang Offline Mode (API Configuration Mode)\n\nKailangan ng API key upang makakonekta sa mga cloud model. Bumabalik sa lokal na database.\n\n${getOfflineAnswer(textToSend, language)}`;
-        } else if (language === "ceb") {
-          aiText = `## Naka-activate ang Offline Mode (API Configuration Mode)\n\nNagkinahanglan og API key aron makakonekta sa mga cloud model. Nibisita sa lokal nga database.\n\n${getOfflineAnswer(textToSend, language)}`;
-        } else if (language === "bik") {
-          aiText = `## Naka-activate an Offline Mode (API Configuration Mode)\n\nKaipuhan nin API key tanganing makakonektar sa mga cloud model. Nagbabalik sa lokal na database.\n\n${getOfflineAnswer(textToSend, language)}`;
-        } else if (language === "ilo") {
-          aiText = `## Naka-activate ti Offline Mode (API Configuration Mode)\n\nMasapul ti API key tapno makakonektar kadagiti cloud model. Reverting to local search database.\n\n${getOfflineAnswer(textToSend, language)}`;
-        } else if (language === "hil") {
-          aiText = `## Naka-activate ang Offline Mode (API Configuration Mode)\n\nKinahanglan sing API key agod makakonekta sa mga cloud model. Nagabalik sa lokal nga database.\n\n${getOfflineAnswer(textToSend, language)}`;
-        } else {
-          aiText = `## Offline Mode Activated (API Configuration Mode)\n\nAn API key is required to connect to the cloud models. Reverting to local search database.\n\n${getOfflineAnswer(textToSend, language)}`;
-        }
+        aiText = `## Local Study Mode\n\nYou are online, but cloud AI is not configured (missing Gemini API key). Using the offline Bible study database.\n\n${getOfflineAnswer(textToSend, language)}`;
       }
 
       const aiMsg: Message = {
@@ -1134,38 +1427,22 @@ export default function App() {
           return {
             ...s,
             messages: [...s.messages, aiMsg],
+            language: s.language ?? language,
           };
         }
         return s;
       });
       saveSessions(freshList);
+      setCloudQuotaExceeded(false);
     } catch (err) {
-      let errorText = "";
-      if (language === "fil") {
-        errorText =
-          "Hindi ko makuha ang sagot mula sa buhay na mapagkukunan. Nagbabalik ng offline na kaalaman fallback:\n\n" +
-          getOfflineAnswer(textToSend, language);
-      } else if (language === "ceb") {
-        errorText =
-          "Dili nako makuha ang tubag gikan sa buhi nga tuburan. Nagabalik sa offline nga kahibalo fallback:\n\n" +
-          getOfflineAnswer(textToSend, language);
-      } else if (language === "bik") {
-        errorText =
-          "Dai ko makuha an simbag gikan sa buhay na mapagkukunan. Nagbabalik sa offline na kaalaman fallback:\n\n" +
-          getOfflineAnswer(textToSend, language);
-      } else if (language === "ilo") {
-        errorText =
-          "Saan a magun-od ti sungbat manipud iti sibibiag a gubuayan. Agsubli iti offline a napanunotan:\n\n" +
-          getOfflineAnswer(textToSend, language);
-      } else if (language === "hil") {
-        errorText =
-          "Indi ko makuha ang sabat gikan sa buhi nga ginahalinan. Nagabalik sa offline nga sabat:\n\n" +
-          getOfflineAnswer(textToSend, language);
-      } else {
-        errorText =
-          "I was unable to retrieve a response from the living source. Returning offline knowledge fallback:\n\n" +
-          getOfflineAnswer(textToSend, language);
+      if (isGeminiQuotaError(err)) {
+        setCloudQuotaExceeded(true);
       }
+      const errorText = resolveGeminiChatErrorMessage(
+        err,
+        language,
+        getOfflineAnswer(textToSend, language),
+      );
 
       const errMsg: Message = {
         role: "model",
@@ -1178,6 +1455,7 @@ export default function App() {
           return {
             ...s,
             messages: [...s.messages, errMsg],
+            language: s.language ?? language,
           };
         }
         return s;
@@ -1192,12 +1470,13 @@ export default function App() {
     <div
       style={{ height: viewportHeight }}
       className={cn(
-        "flex font-sans overflow-hidden transition-colors duration-300 w-full",
-        theme === "dark"
-          ? "bg-midnight text-[#E0E0E0]"
-          : "bg-[#F4F5F7] text-slate-800",
+        "flex font-sans overflow-hidden transition-colors duration-300 w-full relative",
+        getRootClassName(theme),
       )}
     >
+      {isFloralTheme(theme) && (
+        <div className="floral-backdrop fixed inset-0 pointer-events-none z-0" aria-hidden />
+      )}
       <AnimatePresence>
         {showSplash && (
           <motion.div
@@ -1206,7 +1485,7 @@ export default function App() {
             transition={{ duration: 0.5, ease: "easeInOut" }}
             className={cn(
               "fixed inset-0 z-[9999] flex flex-col items-center justify-center transition-colors duration-500",
-              theme === "dark" ? "bg-[#07080a]" : "bg-[#F4F5F7]",
+              getSplashClassName(theme),
             )}
           >
             <motion.div
@@ -1239,7 +1518,7 @@ export default function App() {
                 <p
                   className={cn(
                     "text-xs uppercase tracking-widest font-sans font-light",
-                    theme === "dark" ? "text-slate-500" : "text-slate-400",
+                    isDarkTheme(theme) ? "text-slate-500" : "text-slate-400",
                   )}
                 >
                   Bible Companion & Study Guide
@@ -1256,7 +1535,7 @@ export default function App() {
                 <span
                   className={cn(
                     "text-[10px] font-mono tracking-widest uppercase",
-                    theme === "dark" ? "text-slate-600" : "text-slate-500",
+                    isDarkTheme(theme) ? "text-slate-600" : "text-slate-500",
                   )}
                 >
                   Opening Scriptures...
@@ -1271,7 +1550,7 @@ export default function App() {
       <div
         className={cn(
           "fixed top-1/4 left-1/2 -translate-x-1/2 glow-background -z-0 pointer-events-none transition-opacity duration-300",
-          theme === "dark" ? "opacity-45" : "opacity-10 bg-yellow-500/5",
+          isDarkTheme(theme) ? "opacity-45" : "opacity-10 bg-yellow-500/5",
         )}
       />
 
@@ -1283,8 +1562,8 @@ export default function App() {
           width: isSidebarOpen ? "280px" : "0px",
         }}
         className={cn(
-          "fixed lg:relative z-50 h-full flex flex-col transition-all duration-300 shadow-2xl border-r",
-          theme === "dark"
+          "theme-sidebar fixed lg:relative z-50 h-full flex flex-col transition-all duration-300 shadow-2xl border-r",
+          isDarkTheme(theme)
             ? "bg-[#07080a] border-white/10"
             : "bg-white border-slate-200/80",
           "lg:translate-x-0 lg:w-72",
@@ -1294,7 +1573,7 @@ export default function App() {
         <div
           className={cn(
             "p-6 flex items-center justify-between border-b",
-            theme === "dark" ? "border-white/5" : "border-slate-100",
+            isDarkTheme(theme) ? "border-white/5" : "border-slate-100",
           )}
         >
           <div className="flex items-center gap-3">
@@ -1307,7 +1586,7 @@ export default function App() {
             <span
               className={cn(
                 "text-lg font-semibold tracking-tight",
-                theme === "dark" ? "text-white" : "text-slate-900",
+                isDarkTheme(theme) ? "text-white" : "text-slate-900",
               )}
             >
               The Living{" "}
@@ -1318,7 +1597,7 @@ export default function App() {
             onClick={() => setIsSidebarOpen(false)}
             className={cn(
               "p-2 rounded-lg text-slate-400 transition-colors",
-              theme === "dark" ? "hover:bg-white/5" : "hover:bg-slate-100",
+              isDarkTheme(theme) ? "hover:bg-white/5" : "hover:bg-slate-100",
             )}
           >
             <ChevronLeft className="w-5 h-5" />
@@ -1336,7 +1615,7 @@ export default function App() {
             }}
             className={cn(
               "w-full flex items-center justify-center gap-3 px-4 py-3 rounded-full transition-all text-xs font-semibold uppercase tracking-wider shadow-md border cursor-pointer",
-              theme === "dark"
+              isDarkTheme(theme)
                 ? "bg-white/5 hover:bg-white/10 border-white/10 text-white hover:border-gold-500/50"
                 : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900 hover:border-gold-500/50",
             )}
@@ -1354,7 +1633,7 @@ export default function App() {
             }}
             className={cn(
               "w-full flex items-center justify-center gap-3 px-4 py-3 rounded-full transition-all text-xs font-semibold uppercase tracking-wider shadow-sm border cursor-pointer",
-              theme === "dark"
+              isDarkTheme(theme)
                 ? "bg-amber-500/10 hover:bg-amber-500/15 border-amber-500/20 text-gold-400 hover:text-gold-300"
                 : "bg-amber-500/5 hover:bg-amber-500/10 border-amber-200 text-amber-700 hover:text-amber-800",
             )}
@@ -1371,7 +1650,7 @@ export default function App() {
             <span
               className={cn(
                 "font-mono text-[9px]",
-                theme === "dark" ? "text-slate-500" : "text-slate-400",
+                isDarkTheme(theme) ? "text-slate-500" : "text-slate-400",
               )}
             >
               {sessions.length}{" "}
@@ -1387,7 +1666,7 @@ export default function App() {
             <div
               className={cn(
                 "px-4 py-6 text-xs font-light italic text-center",
-                theme === "dark" ? "text-slate-600" : "text-slate-400",
+                isDarkTheme(theme) ? "text-slate-600" : "text-slate-400",
               )}
             >
               {getUiTranslation("noChats", language)}
@@ -1399,20 +1678,14 @@ export default function App() {
                 return (
                   <div
                     key={sess.id}
-                    onClick={() => {
-                      setActiveSessionId(sess.id);
-                      localStorage.setItem("biblesphere_active_id", sess.id);
-                      if (windowWidth < 1024) {
-                        setIsSidebarOpen(false);
-                      }
-                    }}
+                    onClick={() => selectSession(sess.id, true)}
                     className={cn(
                       "group w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-left transition-all cursor-pointer border border-transparent",
                       isActive
-                        ? theme === "dark"
+                        ? isDarkTheme(theme)
                           ? "bg-white/[0.08] text-white border-l-2 border-l-gold-500"
                           : "bg-slate-100 text-slate-900 border-l-2 border-l-gold-500 font-semibold shadow-sm"
-                        : theme === "dark"
+                        : isDarkTheme(theme)
                           ? "text-slate-400 hover:bg-white/5 hover:text-white"
                           : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                     )}
@@ -1423,7 +1696,7 @@ export default function App() {
                           "w-4 h-4 flex-shrink-0",
                           isActive
                             ? "text-gold-500"
-                            : theme === "dark"
+                            : isDarkTheme(theme)
                               ? "text-slate-500"
                               : "text-slate-400",
                         )}
@@ -1441,7 +1714,7 @@ export default function App() {
                         }}
                         className={cn(
                           "opacity-0 group-hover:opacity-100 p-1 rounded hover:text-gold-400 transition-all",
-                          theme === "dark"
+                          isDarkTheme(theme)
                             ? "hover:bg-white/10 text-slate-500"
                             : "hover:bg-slate-200/80 text-slate-400",
                         )}
@@ -1453,7 +1726,7 @@ export default function App() {
                         onClick={(e) => openDeleteConfirm(sess.id, e)}
                         className={cn(
                           "opacity-0 group-hover:opacity-100 p-1 rounded hover:text-red-400 transition-all",
-                          theme === "dark"
+                          isDarkTheme(theme)
                             ? "hover:bg-white/10 text-slate-500"
                             : "hover:bg-slate-200/80 text-slate-400",
                         )}
@@ -1476,7 +1749,7 @@ export default function App() {
                 }}
                 className={cn(
                   "flex items-center justify-center gap-2 px-3 py-3 rounded-full transition-all text-[10px] font-semibold uppercase tracking-wider border cursor-pointer",
-                  theme === "dark"
+                  isDarkTheme(theme)
                     ? "bg-white/5 hover:bg-white/10 border-white/10 text-slate-300"
                     : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700",
                 )}
@@ -1488,7 +1761,7 @@ export default function App() {
                 onClick={handleImportConversations}
                 className={cn(
                   "flex items-center justify-center gap-2 px-3 py-3 rounded-full transition-all text-[10px] font-semibold uppercase tracking-wider border cursor-pointer",
-                  theme === "dark"
+                  isDarkTheme(theme)
                     ? "bg-white/5 hover:bg-white/10 border-white/10 text-slate-300"
                     : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700",
                 )}
@@ -1511,9 +1784,9 @@ export default function App() {
         <div
           className={cn(
             "p-4 border-t space-y-3",
-            theme === "dark"
+            isDarkTheme(theme)
               ? "border-white/5 bg-[#050608]/80"
-              : "border-slate-100 bg-[#FAFAFB]",
+              : "border-slate-100 bg-white",
           )}
         >
           {/* Quick Language switcher widget inside sidebar */}
@@ -1526,49 +1799,21 @@ export default function App() {
             theme={theme}
           />
 
-          {/* Theme selection toggle in Sidebar */}
-          <button
-            onClick={toggleTheme}
-            className={cn(
-              "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border transition-all cursor-pointer shadow-sm text-xs font-medium",
-              theme === "dark"
-                ? "bg-white/[0.03] border-white/5 hover:bg-white/10 active:bg-white/15 text-slate-300 hover:text-white"
-                : "bg-white border-slate-200/60 hover:bg-slate-50 active:bg-slate-100 text-slate-700 hover:text-slate-900",
-            )}
-            title={
-              theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"
-            }
-          >
-            <div className="flex items-center gap-2">
-              {theme === "dark" ? (
-                <Sun className="w-4 h-4 text-amber-400" />
-              ) : (
-                <Moon className="w-4 h-4 text-slate-500" />
-              )}
-              <span>
-                {language === "fil"
-                  ? "Tema ng App"
-                  : language === "ceb"
-                    ? "Tema sa App"
-                    : "App Theme"}
-              </span>
-            </div>
-            <span
-              className={cn(
-                "text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase",
-                theme === "dark"
-                  ? "bg-amber-500/10 text-amber-400"
-                  : "bg-slate-100 text-slate-600 border border-slate-200/60",
-              )}
-            >
-              {theme === "dark" ? "Dark" : "Light"}
-            </span>
-          </button>
+          <ThemeDropdown
+            value={theme}
+            onChange={changeTheme}
+            themeLabel={getUiTranslation("themeLabel", language)}
+            align="up"
+            className="w-full"
+            theme={theme}
+            language={language}
+            getLabel={getUiTranslation}
+          />
 
           <div
             className={cn(
               "flex items-center justify-between text-xs px-2 pt-1 font-light",
-              theme === "dark" ? "text-slate-500" : "text-slate-400",
+              isDarkTheme(theme) ? "text-slate-500" : "text-slate-400",
             )}
           >
             <span className="flex items-center gap-1">
@@ -1588,7 +1833,7 @@ export default function App() {
         <header
           className={cn(
             "h-16 flex items-center justify-between px-4 lg:px-8 border-b backdrop-blur-md sticky top-0 z-30 transition-colors duration-300",
-            theme === "dark"
+            isDarkTheme(theme)
               ? "border-white/5 bg-[#0B0C10]/60"
               : "border-slate-200/60 bg-[#FAFAFB]/80",
           )}
@@ -1599,7 +1844,7 @@ export default function App() {
                 onClick={() => setIsSidebarOpen(true)}
                 className={cn(
                   "p-2 rounded-full transition-colors",
-                  theme === "dark"
+                  isDarkTheme(theme)
                     ? "hover:bg-white/5 text-white"
                     : "hover:bg-slate-200 text-slate-800",
                 )}
@@ -1611,20 +1856,24 @@ export default function App() {
               <span
                 className={cn(
                   "text-xs uppercase tracking-[0.25em] font-medium shrink-0",
-                  theme === "dark" ? "text-white/50" : "text-slate-500",
+                  isDarkTheme(theme) ? "text-white/50" : "text-slate-500",
                 )}
               >
-                {getUiTranslation("currentChat", language)}
+                {showHomeScreen
+                  ? getUiTranslation("suggestedPassages", language)
+                  : getUiTranslation("currentChat", language)}
               </span>
               <span
                 className={cn(
                   "text-xs font-semibold tracking-wide max-w-[200px] md:max-w-xs truncate",
-                  theme === "dark" ? "text-white" : "text-slate-800",
+                  isDarkTheme(theme) ? "text-white" : "text-slate-800",
                 )}
               >
-                {activeSession
-                  ? activeSession.title
-                  : getUiTranslation("introGuide", language)}
+                {showHomeScreen
+                  ? getUiTranslation("titleMain", language)
+                  : activeSession
+                    ? activeSession.title
+                    : getUiTranslation("introGuide", language)}
               </span>
             </div>
           </div>
@@ -1634,6 +1883,7 @@ export default function App() {
             <AnimatePresence mode="wait">
               {!currentOnlineStatus ? (
                 <motion.div
+                  key="offline"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0 }}
@@ -1642,8 +1892,20 @@ export default function App() {
                   <WifiOff className="w-3.5 h-3.5 animate-bounce" />
                   <span>{getUiTranslation("offlineActive", language)}</span>
                 </motion.div>
+              ) : cloudQuotaExceeded ? (
+                <motion.div
+                  key="quota"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center gap-2 px-2.5 py-1 bg-orange-500/10 border border-orange-500/25 rounded-full text-[10px] tracking-wider uppercase text-orange-400 font-semibold"
+                >
+                  <WifiOff className="w-3.5 h-3.5" />
+                  <span>{getUiTranslation("cloudQuotaActive", language)}</span>
+                </motion.div>
               ) : (
                 <motion.div
+                  key="online"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0 }}
@@ -1655,15 +1917,12 @@ export default function App() {
               )}
             </AnimatePresence>
 
-            {activeSession && (
+            {activeSession && !showHomeScreen && (
               <button
-                onClick={() => {
-                  setActiveSessionId(null);
-                  localStorage.removeItem("biblesphere_active_id");
-                }}
+                onClick={goHome}
                 className={cn(
-                  "hidden sm:inline-flex transition-all text-xs border px-3 py-1 rounded-full items-center gap-1 font-semibold",
-                  theme === "dark"
+                  "lg:hidden transition-all text-xs border px-3 py-1 rounded-full items-center gap-1 font-semibold inline-flex",
+                  isDarkTheme(theme)
                     ? "text-slate-400 hover:text-white border-white/10 bg-white/5"
                     : "text-slate-600 hover:text-slate-950 border-slate-200 bg-slate-50",
                 )}
@@ -1675,7 +1934,7 @@ export default function App() {
             <div
               className={cn(
                 "w-9 h-9 rounded-full flex items-center justify-center border",
-                theme === "dark"
+                isDarkTheme(theme)
                   ? "bg-slate-800 border-white/10"
                   : "bg-slate-100 border-slate-200",
               )}
@@ -1683,7 +1942,7 @@ export default function App() {
               <User
                 className={cn(
                   "w-5 h-5",
-                  theme === "dark" ? "text-slate-400" : "text-slate-500",
+                  isDarkTheme(theme) ? "text-slate-400" : "text-slate-500",
                 )}
               />
             </div>
@@ -1702,7 +1961,7 @@ export default function App() {
           onMouseLeave={handleScrollInteractionEnd}
           className="flex-1 overflow-y-auto px-4 md:px-8 lg:px-24 xl:px-44 py-8 scroll-smooth"
         >
-          {messages.length === 0 ? (
+          {showHomeScreen ? (
             <div className="h-full flex flex-col items-center justify-center max-w-4xl mx-auto space-y-12 py-12">
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
@@ -1727,7 +1986,7 @@ export default function App() {
                 <p
                   className={cn(
                     "text-base md:text-lg font-light max-w-xl mx-auto leading-relaxed",
-                    theme === "dark" ? "text-slate-400" : "text-slate-600",
+                    isDarkTheme(theme) ? "text-slate-400" : "text-slate-600",
                   )}
                 >
                   {getUiTranslation("welcomeDesc", language)}
@@ -1740,56 +1999,99 @@ export default function App() {
                 </p>
               </motion.div>
 
-              {/* Suggestions Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-                {suggestions.map((text, i) => (
-                  <motion.button
-                    key={text}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.1 * i }}
-                    onClick={() => {
-                      handleSend(text);
-                    }}
+              {/* Verse suggestions */}
+              <div className="w-full max-w-3xl mx-auto space-y-6">
+                <p
+                  className={cn(
+                    "text-[10px] uppercase tracking-widest font-semibold text-center",
+                    isDarkTheme(theme) ? "text-gold-400" : "text-gold-600",
+                  )}
+                >
+                  {getUiTranslation("suggestedPassages", language)}
+                </p>
+
+                {verseSuggestionsLoading ? (
+                  <div
                     className={cn(
-                      "p-6 text-left border rounded-2xl transition-all group shadow-xl flex flex-col justify-between cursor-pointer",
-                      theme === "dark"
-                        ? "bg-white/5 hover:bg-white/10 border-white/5 hover:border-gold-500/30"
-                        : "bg-white hover:bg-slate-50 border-slate-200 hover:border-gold-500/30 shadow-sm",
+                      "p-6 border rounded-2xl text-center text-sm font-light",
+                      isDarkTheme(theme)
+                        ? "bg-white/5 border-white/5 text-slate-400"
+                        : "bg-white border-slate-200 text-slate-500",
                     )}
                   >
-                    <p
-                      className={cn(
-                        "font-light mb-4 leading-relaxed",
-                        theme === "dark"
-                          ? "text-slate-300 group-hover:text-white"
-                          : "text-slate-700 group-hover:text-slate-900",
-                      )}
-                    >
-                      {text}
-                    </p>
-                    <div className="flex items-center justify-between w-full">
-                      <span
+                    {getUiTranslation("verseSuggestionsLoading", language)}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {verseSuggestions.map((suggestion) => (
+                      <motion.button
+                        key={suggestion.reference}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        onClick={() => handleSend(suggestion.reference)}
                         className={cn(
-                          "text-[9px] uppercase tracking-widest font-mono transition-colors",
-                          theme === "dark"
-                            ? "text-slate-500 group-hover:text-gold-500"
-                            : "text-slate-400 group-hover:text-gold-600",
+                          "p-5 text-left border rounded-2xl transition-all group shadow-lg flex flex-col gap-3 cursor-pointer h-full",
+                          isDarkTheme(theme)
+                            ? "bg-white/5 hover:bg-white/10 border-white/5 hover:border-gold-500/30"
+                            : "bg-white hover:bg-slate-50 border-slate-200 hover:border-gold-500/30 shadow-sm",
                         )}
                       >
-                        {getUiTranslation("queryGuide", language)}
-                      </span>
-                      <Search
-                        className={cn(
-                          "w-4 h-4 transition-colors",
-                          theme === "dark"
-                            ? "text-slate-600 group-hover:text-gold-500"
-                            : "text-slate-400 group-hover:text-gold-600",
-                        )}
-                      />
-                    </div>
-                  </motion.button>
-                ))}
+                        {suggestion.text ? (
+                          <p
+                            className={cn(
+                              "font-light leading-relaxed text-sm md:text-base line-clamp-4",
+                              isDarkTheme(theme)
+                                ? "text-slate-300 group-hover:text-white"
+                                : "text-slate-700 group-hover:text-slate-900",
+                            )}
+                          >
+                            {suggestion.text}
+                          </p>
+                        ) : null}
+                        <div className="flex items-center justify-between w-full gap-3 mt-auto">
+                          <span
+                            className={cn(
+                              "text-sm font-semibold",
+                              isDarkTheme(theme)
+                                ? "text-gold-400 group-hover:text-gold-300"
+                                : "text-gold-600 group-hover:text-gold-700",
+                            )}
+                          >
+                            {suggestion.reference}
+                          </span>
+                          <span
+                            className={cn(
+                              "text-[9px] uppercase tracking-widest font-mono transition-colors shrink-0",
+                              isDarkTheme(theme)
+                                ? "text-slate-500 group-hover:text-gold-500"
+                                : "text-slate-400 group-hover:text-gold-600",
+                            )}
+                          >
+                            {getUiTranslation("dailyVerseTap", language)}
+                          </span>
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    void refreshVerseSuggestions(
+                      verseSuggestions.map((suggestion) => suggestion.reference),
+                    )
+                  }
+                  disabled={verseSuggestionsLoading}
+                  className={cn(
+                    "w-full py-3 px-4 rounded-2xl border text-sm font-semibold tracking-wide transition-all disabled:opacity-50",
+                    isDarkTheme(theme)
+                      ? "border-white/10 bg-white/5 hover:bg-white/10 text-gold-400"
+                      : "border-slate-200 bg-white hover:bg-slate-50 text-gold-600",
+                  )}
+                >
+                  {getUiTranslation("suggestMore", language)}
+                </button>
               </div>
             </div>
           ) : (
@@ -1825,12 +2127,12 @@ export default function App() {
                     className={cn(
                       "max-w-[90%] md:max-w-[85%]",
                       msg.role === "user"
-                        ? theme === "dark"
+                        ? isDarkTheme(theme)
                           ? "bg-slate-overlay border border-white/5 rounded-2xl rounded-tr-none px-6 py-4 shadow-xl"
                           : "bg-white border border-slate-200/80 rounded-2xl rounded-tr-none px-6 py-4 shadow-md text-slate-800"
                         : cn(
                             "space-y-4 text-sm sm:text-base md:text-lg font-light leading-relaxed max-w-none bible-markdown",
-                            theme === "dark"
+                            isDarkTheme(theme)
                               ? "text-white prose-invert prose-gold"
                               : "text-slate-800 prose prose-gold",
                           ),
@@ -1841,7 +2143,7 @@ export default function App() {
                         <p
                           className={cn(
                             "leading-relaxed font-light",
-                            theme === "dark"
+                            isDarkTheme(theme)
                               ? "text-slate-200"
                               : "text-slate-800",
                           )}
@@ -1865,7 +2167,7 @@ export default function App() {
                               <blockquote
                                 className={cn(
                                   "border-l-2 border-gold-500 pl-6 py-1 italic text-lg my-6 rounded-r-md",
-                                  theme === "dark"
+                                  isDarkTheme(theme)
                                     ? "bg-white/[0.01] text-slate-400"
                                     : "bg-slate-100/50 text-slate-600",
                                 )}
@@ -1882,7 +2184,7 @@ export default function App() {
                               <h3
                                 className={cn(
                                   "font-display text-lg tracking-wider mb-2",
-                                  theme === "dark"
+                                  isDarkTheme(theme)
                                     ? "text-white"
                                     : "text-slate-900 font-semibold",
                                 )}
@@ -1900,7 +2202,7 @@ export default function App() {
                   <span
                     className={cn(
                       "text-[10px] mt-2 tracking-widest uppercase font-medium",
-                      theme === "dark" ? "text-slate-600" : "text-slate-400",
+                      isDarkTheme(theme) ? "text-slate-600" : "text-slate-400",
                       msg.role === "user" ? "mr-1" : "ml-1",
                     )}
                   >
@@ -1909,22 +2211,39 @@ export default function App() {
                 </motion.div>
               ))}
 
-              {isTranslating && (
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full bg-gold-500/20 animate-bounce"></div>
-                  <span className="text-xs tracking-widest uppercase text-gold-500/50 animate-pulse">
-                    {getUiTranslation("translating", language)}
-                  </span>
-                </div>
-              )}
-
-              {isLoading && (
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full bg-gold-500/20 animate-bounce"></div>
-                  <span className="text-xs tracking-widest uppercase text-gold-500/50 animate-pulse">
-                    {getUiTranslation("consulting", language)}
-                  </span>
-                </div>
+              {(isTranslating || isLoading) && (
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex flex-col items-start w-full"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#D4AF37] to-[#F9E4A0] animate-pulse shadow-[0_0_15px_rgba(212,175,55,0.3)]" />
+                    <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-gold-500/80">
+                      {getUiTranslation("scribe", language)}
+                    </span>
+                  </div>
+                  <div
+                    className={cn(
+                      "flex items-center gap-3 px-5 py-4 border rounded-2xl rounded-tl-none shadow-lg",
+                      isDarkTheme(theme)
+                        ? "bg-white/5 border-white/10 text-slate-300"
+                        : "bg-white border-slate-200 text-slate-600 shadow-sm",
+                    )}
+                  >
+                    <Loader2
+                      className={cn(
+                        "w-5 h-5 shrink-0 animate-spin",
+                        isDarkTheme(theme) ? "text-gold-400" : "text-gold-600",
+                      )}
+                    />
+                    <span className="text-sm font-light animate-pulse">
+                      {isTranslating
+                        ? getUiTranslation("translating", language)
+                        : getUiTranslation("consulting", language)}
+                    </span>
+                  </div>
+                </motion.div>
               )}
             </div>
           )}
@@ -1936,7 +2255,7 @@ export default function App() {
             <div
               className={cn(
                 "relative flex items-center border rounded-full h-14 md:h-16 px-4 md:px-6 shadow-2xl transition-all group",
-                theme === "dark"
+                isDarkTheme(theme)
                   ? "bg-slate-overlay border-white/10 focus-within:border-gold-500/50"
                   : "bg-white border-slate-200 focus-within:border-gold-500/50 shadow-md",
               )}
@@ -1960,7 +2279,7 @@ export default function App() {
                 }}
                 className={cn(
                   "transition-colors flex-shrink-0 cursor-pointer",
-                  theme === "dark"
+                  isDarkTheme(theme)
                     ? "text-slate-500 hover:text-gold-500"
                     : "text-slate-400 hover:text-gold-600",
                 )}
@@ -1992,7 +2311,7 @@ export default function App() {
                 }
                 className={cn(
                   "flex-1 bg-transparent border-none focus:ring-0 px-4 font-light focus:outline-none min-w-0 font-sans",
-                  theme === "dark"
+                  isDarkTheme(theme)
                     ? "text-white placeholder-slate-500"
                     : "text-slate-800 placeholder-slate-400",
                 )}
@@ -2005,12 +2324,16 @@ export default function App() {
                     "w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer",
                     input.trim() && !isLoading
                       ? "bg-gradient-to-tr from-[#D4AF37] to-[#8E6E2E] text-midnight shadow-lg shadow-yellow-900/40 active:scale-95"
-                      : theme === "dark"
+                      : isDarkTheme(theme)
                         ? "bg-white/5 text-slate-600 cursor-not-allowed"
                         : "bg-slate-100 text-slate-300 cursor-not-allowed",
                   )}
                 >
-                  <Send className="w-5 h-5" />
+                  {isLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -2018,7 +2341,7 @@ export default function App() {
             <p
               className={cn(
                 "text-[9px] text-center mt-4 uppercase tracking-[0.3em]",
-                theme === "dark" ? "text-slate-600" : "text-slate-400",
+                isDarkTheme(theme) ? "text-slate-600" : "text-slate-400",
               )}
             >
               {getUiTranslation("sourceFooter", language)}
@@ -2050,7 +2373,7 @@ export default function App() {
               exit={{ scale: 0.95, y: 15 }}
               className={cn(
                 "max-w-md w-full p-6 md:p-8 rounded-3xl border text-center relative overflow-hidden select-text",
-                theme === "dark"
+                isDarkTheme(theme)
                   ? "bg-[#0E1015]/95 border-white/10"
                   : "bg-white border-slate-200",
               )}
@@ -2130,7 +2453,7 @@ export default function App() {
               onClick={(e) => e.stopPropagation()}
               className={cn(
                 "w-full max-w-md rounded-2xl border p-5 shadow-2xl",
-                theme === "dark"
+                isDarkTheme(theme)
                   ? "bg-[#0E1015] border-white/10"
                   : "bg-white border-slate-200",
               )}
@@ -2138,7 +2461,7 @@ export default function App() {
               <h2
                 className={cn(
                   "text-lg font-semibold mb-4",
-                  theme === "dark" ? "text-white" : "text-slate-900",
+                  isDarkTheme(theme) ? "text-white" : "text-slate-900",
                 )}
               >
                 {getUiTranslation("renameChat", language)}
@@ -2157,7 +2480,7 @@ export default function App() {
                 placeholder={getUiTranslation("renamePlaceholder", language)}
                 className={cn(
                   "w-full rounded-xl border px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-gold-500/40 mb-4",
-                  theme === "dark"
+                  isDarkTheme(theme)
                     ? "bg-white/5 border-white/10 text-white"
                     : "bg-slate-50 border-slate-200 text-slate-900",
                 )}
@@ -2170,7 +2493,7 @@ export default function App() {
                   }}
                   className={cn(
                     "px-4 py-2 rounded-full text-xs font-semibold border",
-                    theme === "dark"
+                    isDarkTheme(theme)
                       ? "border-white/10 text-slate-300 hover:bg-white/5"
                       : "border-slate-200 text-slate-600 hover:bg-slate-50",
                   )}
@@ -2206,7 +2529,7 @@ export default function App() {
               onClick={(e) => e.stopPropagation()}
               className={cn(
                 "w-full max-w-md rounded-2xl border p-5 shadow-2xl",
-                theme === "dark"
+                isDarkTheme(theme)
                   ? "bg-[#0E1015] border-white/10"
                   : "bg-white border-slate-200",
               )}
@@ -2214,7 +2537,7 @@ export default function App() {
               <h2
                 className={cn(
                   "text-lg font-semibold mb-2",
-                  theme === "dark" ? "text-white" : "text-slate-900",
+                  isDarkTheme(theme) ? "text-white" : "text-slate-900",
                 )}
               >
                 {getUiTranslation("deleteChat", language)}
@@ -2222,7 +2545,7 @@ export default function App() {
               <p
                 className={cn(
                   "text-sm mb-1",
-                  theme === "dark" ? "text-slate-400" : "text-slate-600",
+                  isDarkTheme(theme) ? "text-slate-400" : "text-slate-600",
                 )}
               >
                 {sessions.find((s) => s.id === deleteSessionId)?.title}
@@ -2230,7 +2553,7 @@ export default function App() {
               <p
                 className={cn(
                   "text-sm mb-5",
-                  theme === "dark" ? "text-slate-500" : "text-slate-500",
+                  isDarkTheme(theme) ? "text-slate-500" : "text-slate-500",
                 )}
               >
                 {getUiTranslation("deleteChatConfirm", language)}
@@ -2240,7 +2563,7 @@ export default function App() {
                   onClick={closeDeleteConfirm}
                   className={cn(
                     "px-4 py-2 rounded-full text-xs font-semibold border",
-                    theme === "dark"
+                    isDarkTheme(theme)
                       ? "border-white/10 text-slate-300 hover:bg-white/5"
                       : "border-slate-200 text-slate-600 hover:bg-slate-50",
                   )}

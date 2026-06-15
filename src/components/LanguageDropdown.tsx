@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { Languages, ChevronDown } from "lucide-react";
 import { cn } from "../lib/utils";
 import type { LangType } from "../types";
+import type { ThemeId } from "../theme";
+import { isDarkTheme } from "../theme";
 import { LANG_OPTIONS } from "../languages";
 
 interface LanguageDropdownProps {
@@ -11,7 +13,7 @@ interface LanguageDropdownProps {
   langLabel?: string;
   align?: "up" | "down";
   className?: string;
-  theme?: "dark" | "light";
+  theme?: ThemeId;
 }
 
 const LANGUAGES = LANG_OPTIONS.map(({ code, label, native }) => ({
@@ -33,7 +35,7 @@ export function LanguageDropdown({
 
   const selectedLang = LANGUAGES.find((l) => l.code === currentLang) || LANGUAGES[0];
 
-  const isDark = theme === "dark";
+  const isDark = isDarkTheme(theme);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

@@ -1,7 +1,5 @@
 import { Platform } from "react-native";
-import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
-import * as Sharing from "expo-sharing";
 import {
   buildBackupPayload,
   getBackupFilename,
@@ -9,6 +7,16 @@ import {
   serializeBackup,
 } from "../lib/conversationBackup";
 import type { ChatSession } from "../types";
+
+function isNativeModuleError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+  return /native module|ExpoDocumentPicker|ExpoSharing/i.test(message);
+}
 
 export async function exportConversationsNative(
   sessions: ChatSession[],
@@ -51,6 +59,7 @@ export async function exportConversationsNative(
       encoding: FileSystem.EncodingType.UTF8,
     });
 
+    const Sharing = await import("expo-sharing");
     if (!(await Sharing.isAvailableAsync())) {
       return { error: "export_failed" };
     }
@@ -61,7 +70,10 @@ export async function exportConversationsNative(
       dialogTitle: filename,
     });
     return {};
-  } catch {
+  } catch (error) {
+    if (isNativeModuleError(error)) {
+      return { error: "native_module_unavailable" };
+    }
     return { error: "export_failed" };
   }
 }
@@ -69,19 +81,27 @@ export async function exportConversationsNative(
 export async function importConversationsNative(): Promise<
   { cancelled: true } | { backup: ReturnType<typeof parseBackupJson> }
 > {
-  const result = await DocumentPicker.getDocumentAsync({
-    type: "application/json",
-    copyToCacheDirectory: true,
-    multiple: false,
-  });
+  try {
+    const DocumentPicker = await import("expo-document-picker");
+    const result = await DocumentPicker.getDocumentAsync({
+      type: "application/json",
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
 
-  if (result.canceled || !result.assets?.[0]?.uri) {
-    return { cancelled: true };
+    if (result.canceled || !result.assets?.[0]?.uri) {
+      return { cancelled: true };
+    }
+
+    const raw = await FileSystem.readAsStringAsync(result.assets[0].uri, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+
+    return { backup: parseBackupJson(raw) };
+  } catch (error) {
+    if (isNativeModuleError(error)) {
+      throw new Error("native_module_unavailable");
+    }
+    throw error;
   }
-
-  const raw = await FileSystem.readAsStringAsync(result.assets[0].uri, {
-    encoding: FileSystem.EncodingType.UTF8,
-  });
-
-  return { backup: parseBackupJson(raw) };
 }

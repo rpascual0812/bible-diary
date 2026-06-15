@@ -12,6 +12,52 @@ const getEnv = (key: string, defaultValue: string): string => {
   return defaultValue;
 };
 
+const PLACEHOLDER_KEYS = new Set(["MY_GEMINI_API_KEY", ""]);
+
+function stripEnvQuotes(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
+function getExpoGeminiKeyFromExtra(): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Constants = require("expo-constants").default as {
+      expoConfig?: { extra?: { geminiApiKey?: string } };
+    };
+    const fromExtra = Constants.expoConfig?.extra?.geminiApiKey;
+    if (typeof fromExtra === "string") {
+      return stripEnvQuotes(fromExtra);
+    }
+  } catch {
+    // Web / non-Expo
+  }
+  return "";
+}
+
+/** Resolve Gemini API key from Vite, Expo, or Node env. */
+export function resolveGeminiApiKey(): string {
+  for (const key of ["EXPO_PUBLIC_GEMINI_API_KEY", "GEMINI_API_KEY"]) {
+    const value = stripEnvQuotes(getEnv(key, ""));
+    if (value && !PLACEHOLDER_KEYS.has(value)) {
+      return value;
+    }
+  }
+
+  const fromExpo = getExpoGeminiKeyFromExtra();
+  if (fromExpo && !PLACEHOLDER_KEYS.has(fromExpo)) {
+    return fromExpo;
+  }
+
+  return "";
+}
+
 // Standalone Google Play APK - Baked API Key Configuration
 //
 // If you are compiling this application as an offline Android APK for personal use
@@ -20,7 +66,7 @@ const getEnv = (key: string, defaultValue: string): string => {
 // so that your app's end-users do not have to copy-paste or configure any API keys.
 //
 // To obtain a free API key, visit: https://aistudio.google.com/
-export const BAKED_GEMINI_API_KEY = getEnv("GEMINI_API_KEY", "");
+export const BAKED_GEMINI_API_KEY = resolveGeminiApiKey();
 
 // PayMongo Secret Key Configuration
 //

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { BookOpen, ChevronLeft, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { cn } from "../lib/utils";
 import type { LangType } from "../types";
+import type { ThemeId } from "../theme";
+import { isDarkTheme } from "../theme";
 import { getBibleReaderLabels } from "../lib/bibleReaderLabels";
 import {
   detectBibleVerse,
@@ -17,7 +19,7 @@ interface BibleVerseReaderProps {
   query: string;
   onNavigate: (verseRef: string) => void;
   language: LangType;
-  theme: "dark" | "light";
+  theme: ThemeId;
 }
 
 export function BibleVerseReader({
@@ -35,7 +37,7 @@ export function BibleVerseReader({
   const [chapterError, setChapterError] = useState<string | null>(null);
   const [showFullChapter, setShowFullChapter] = useState(false);
 
-  const isDark = theme === "dark";
+  const isDark = isDarkTheme(theme);
 
   useEffect(() => {
     if (!verseInfo) return;

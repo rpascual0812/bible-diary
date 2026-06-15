@@ -1,4 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
+import {
+  getGeminiQuotaUserMessage,
+  isGeminiQuotaOrRateLimitError,
+  GeminiQuotaError,
+} from "../lib/geminiErrors";
 import type { LangType } from "../types";
 
 const SYSTEM_INSTRUCTION_EN = `You are Bible Diary, a highly specialized conversational assistant focused exclusively on the Bible. 
@@ -127,6 +132,12 @@ export class GeminiService {
       return response.text || "I'm sorry, I couldn't generate a response.";
     } catch (error) {
       console.error("Gemini API Error:", error);
+      if (isGeminiQuotaOrRateLimitError(error)) {
+        throw new GeminiQuotaError(
+          getGeminiQuotaUserMessage(this.currentLang),
+          error,
+        );
+      }
       if (this.currentLang === "fil") {
         throw new Error(
           "Hindi maproseso ang tugon mula sa banal na karunungan. Pakisuri ang iyong koneksyon sa internet.",
