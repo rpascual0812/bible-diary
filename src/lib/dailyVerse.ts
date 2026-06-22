@@ -11,7 +11,9 @@ export interface DailyVerseStorage {
   setItem(key: string, value: string): Promise<void> | void;
 }
 
-const CACHE_KEY = "biblesphere_daily_verse";
+import { STORAGE_KEYS } from "./appIdentity";
+
+const CACHE_KEY = STORAGE_KEYS.dailyVerse;
 
 export const VERSE_SUGGESTION_REFERENCES = [
   "Genesis 1:1",

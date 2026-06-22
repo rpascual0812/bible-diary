@@ -38,6 +38,11 @@ import {
 import { useOnlineStatus } from "../src/lib/useOnlineStatus";
 import { formatTime } from "../src/lib/utils";
 import type { ChatSession, LangType } from "../src/types";
+import {
+  migrateLegacyNativeStorage,
+  readNativeStorageItem,
+  STORAGE_KEYS,
+} from "../src/lib/appIdentity";
 import { getItem, removeItem, setItem } from "../src/native/storage";
 import { t } from "../src/native/translations";
 import {
@@ -64,13 +69,6 @@ import {
 } from "../src/theme";
 
 const brandLogo = require("../src/assets/images/brand-logo.png");
-
-const STORAGE_KEYS = {
-  sessions: "biblesphere_sessions",
-  activeId: "biblesphere_active_id",
-  language: "biblesphere_lang",
-  theme: "biblesphere_theme",
-};
 
 function createSession(title: string, language: LangType): ChatSession {
   return {
@@ -144,12 +142,14 @@ export default function NativeApp() {
     let active = true;
 
     async function hydrate() {
+      await migrateLegacyNativeStorage(getItem, setItem);
+
       const [savedLang, savedTheme, savedSessions, savedActiveId] =
         await Promise.all([
-          getItem(STORAGE_KEYS.language),
-          getItem(STORAGE_KEYS.theme),
-          getItem(STORAGE_KEYS.sessions),
-          getItem(STORAGE_KEYS.activeId),
+          readNativeStorageItem(getItem, "language"),
+          readNativeStorageItem(getItem, "theme"),
+          readNativeStorageItem(getItem, "sessions"),
+          readNativeStorageItem(getItem, "activeId"),
         ]);
 
       if (!active) return;
@@ -664,7 +664,7 @@ export default function NativeApp() {
         >
           <Image source={brandLogo} style={styles.splashLogo} />
           <Text style={[styles.splashTitle, { color: colors.text }]}>
-            Bible Diary
+            Daily Healing Word
           </Text>
           <Text style={[styles.splashSubtitle, { color: colors.muted }]}>
             Bible Companion & Study Guide
@@ -924,8 +924,8 @@ function NativeAppContent({
                 numberOfLines={1}
               >
                 {showHomeScreen
-                  ? "Bible Diary"
-                  : (activeSession?.title ?? "Bible Diary")}
+                  ? "Daily Healing Word"
+                  : (activeSession?.title ?? "Daily Healing Word")}
               </Text>
               <Text
                 style={[
@@ -965,7 +965,7 @@ function NativeAppContent({
             >
               <Image source={brandLogo} style={styles.emptyLogo} />
               <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                Bible Diary
+                Daily Healing Word
               </Text>
               <Text style={[styles.emptyText, { color: colors.muted }]}>
                 {t("welcomeDesc", language)}
@@ -1078,7 +1078,7 @@ function NativeAppContent({
                     <Text
                       style={[styles.typingLabel, { color: colors.accent }]}
                     >
-                      Bible Diary
+                      Daily Healing Word
                     </Text>
                   </View>
                   <View
@@ -1119,7 +1119,7 @@ function NativeAppContent({
                 ]}
               >
                 <Text style={[styles.messageMeta, { color: colors.muted }]}>
-                  {item.role === "user" ? "You" : "Bible Diary"} ·{" "}
+                  {item.role === "user" ? "You" : "Daily Healing Word"} ·{" "}
                   {formatTime(item.timestamp)}
                 </Text>
                 {item.role === "model" ? (

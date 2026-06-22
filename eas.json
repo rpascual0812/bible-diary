@@ -12,13 +12,19 @@
     "preview": {
       "node": "22.13.0",
       "distribution": "internal",
+      "environment": "preview",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
       "node": "22.13.0",
-      "autoIncrement": true
+      "autoIncrement": false,
+      "environment": "production",
+      "android": {
+        "buildType": "app-bundle",
+        "credentialsSource": "remote"
+      }
     }
   },
   "submit": {

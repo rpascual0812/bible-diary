@@ -69,7 +69,7 @@ export async function translateMessages(
   const raw = await generateWithQuotaCheck(
     apiKey,
     targetLang,
-    `You are translating a Bible study chat for Bible Diary. Translate each string in the JSON array below to ${getLanguageName(targetLang)}. Preserve Markdown, scripture references, and theological terms. Return ONLY a JSON array of translated strings in the same order.
+    `You are translating a Bible study chat for Daily Healing Word. Translate each string in the JSON array below to ${getLanguageName(targetLang)}. Preserve Markdown, scripture references, and theological terms. Return ONLY a JSON array of translated strings in the same order.
 
 ${JSON.stringify(payload)}`,
   );

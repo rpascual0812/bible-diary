@@ -25,15 +25,68 @@ function stripEnvQuotes(value: string): string {
   return trimmed;
 }
 
+function acceptGeminiKey(value: string): string {
+  const normalized = stripEnvQuotes(value);
+  if (normalized && !PLACEHOLDER_KEYS.has(normalized)) {
+    return normalized;
+  }
+  return "";
+}
+
+/** Static env reads so Metro can inline EXPO_PUBLIC_* at bundle time. */
+function readGeminiKeyFromProcessEnv(): string {
+  if (typeof process === "undefined" || !process.env) {
+    return "";
+  }
+
+  // Literal property access is required — dynamic process.env[key] is not inlined.
+  return (
+    acceptGeminiKey(process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? "") ||
+    acceptGeminiKey(process.env.GEMINI_API_KEY ?? "")
+  );
+}
+
+function readGeminiKeyFromImportMeta(): string {
+  try {
+    const metaEnv = (import.meta as ImportMeta & { env?: Record<string, string> })
+      .env;
+    if (!metaEnv) return "";
+
+    return (
+      acceptGeminiKey(metaEnv.EXPO_PUBLIC_GEMINI_API_KEY ?? "") ||
+      acceptGeminiKey(metaEnv.GEMINI_API_KEY ?? "") ||
+      acceptGeminiKey(metaEnv.VITE_GEMINI_API_KEY ?? "")
+    );
+  } catch {
+    return "";
+  }
+}
+
 function getExpoGeminiKeyFromExtra(): string {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const Constants = require("expo-constants").default as {
+    const expoConstants = require("expo-constants");
+    const Constants = (expoConstants.default ?? expoConstants) as {
       expoConfig?: { extra?: { geminiApiKey?: string } };
+      manifest?: { extra?: { geminiApiKey?: string } } | null;
+      manifest2?: {
+        extra?: { expoClient?: { extra?: { geminiApiKey?: string } } };
+      } | null;
     };
-    const fromExtra = Constants.expoConfig?.extra?.geminiApiKey;
-    if (typeof fromExtra === "string") {
-      return stripEnvQuotes(fromExtra);
+
+    const candidates = [
+      Constants.expoConfig?.extra?.geminiApiKey,
+      Constants.manifest?.extra?.geminiApiKey,
+      Constants.manifest2?.extra?.expoClient?.extra?.geminiApiKey,
+    ];
+
+    for (const candidate of candidates) {
+      const accepted = acceptGeminiKey(
+        typeof candidate === "string" ? candidate : "",
+      );
+      if (accepted) {
+        return accepted;
+      }
     }
   } catch {
     // Web / non-Expo
@@ -43,19 +96,11 @@ function getExpoGeminiKeyFromExtra(): string {
 
 /** Resolve Gemini API key from Vite, Expo, or Node env. */
 export function resolveGeminiApiKey(): string {
-  for (const key of ["EXPO_PUBLIC_GEMINI_API_KEY", "GEMINI_API_KEY"]) {
-    const value = stripEnvQuotes(getEnv(key, ""));
-    if (value && !PLACEHOLDER_KEYS.has(value)) {
-      return value;
-    }
-  }
-
-  const fromExpo = getExpoGeminiKeyFromExtra();
-  if (fromExpo && !PLACEHOLDER_KEYS.has(fromExpo)) {
-    return fromExpo;
-  }
-
-  return "";
+  return (
+    readGeminiKeyFromProcessEnv() ||
+    getExpoGeminiKeyFromExtra() ||
+    readGeminiKeyFromImportMeta()
+  );
 }
 
 // Standalone Google Play APK - Baked API Key Configuration

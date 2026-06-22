@@ -162,7 +162,7 @@ async function startServer() {
                 show_line_items: true,
                 cancel_url: baseUrl,
                 success_url: `${baseUrl}?donation_status=success&amount=${numericAmount}&purpose=${encodeURIComponent(purpose)}`,
-                description: `Bible Diary Church Support - Gift of ${purpose}`,
+                description: `Daily Healing Word Church Support - Gift of ${purpose}`,
                 line_items: [
                   {
                     amount: amountInCentavos,

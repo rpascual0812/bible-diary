@@ -1,6 +1,6 @@
 {
-  "name": "Bible Diary",
-  "description": "A conversational AI companion for Biblical wisdom and exploration, inspired by Gemini.",
+  "name": "Daily Healing Word",
+  "description": "A conversational AI companion for Biblical wisdom and healing through Scripture, inspired by Gemini.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

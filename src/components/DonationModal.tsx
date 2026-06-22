@@ -13,7 +13,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
-import { cn } from "../lib/utils";
+import { STORAGE_KEYS } from "../lib/appIdentity";
 import type { LangType } from "../types";
 import type { ThemeId } from "../theme";
 import { isDarkTheme } from "../theme";
@@ -175,12 +175,12 @@ export function DonationModal({
       hil: "Dapit sang Halad",
     },
     subtitle: {
-      en: "Your generous contribution will help pay for the AI expenses of Bible Diary. A part of your donation will be given to church missions, general ministries, and community services.",
-      fil: "Ang inyong masayang pagbibigay ay makatutulong sa gastusin sa AI ng Bible Diary. Ang bahagi ng inyong handog ay ibabahagi rin sa mga misyon ng simbahan, pangkalahatang ministeryo, at serbisyo sa komunidad.",
-      ceb: "Ang inyong manggihatagon nga paghatag makatabang sa pagbayad sa mga AI nga gasto sa Bible Diary. Ang bahin sa inyong donasyon ihalad usab sa mga misyon sa simbahan, kinatibuk-ang ministeryo, ug serbisyo sa komunidad.",
-      bik: "An saimong maugmang pag-alay makakatabang sa mga gastos sa AI kan Bible Diary. An parte kan saimong donasyon itatao sa mga misyon kan simbahan, pangkalahatang ministeryo, asin serbisyo sa komunidad.",
-      ilo: "Ti naimpusoan a datonyo ket makatulong a mangbayad iti gastusen ti AI ti Bible Diary. Ti dadduma a paset ti donasionyo ket maidaton met iti mision ti simbaan, sabsabali a ministeryo, ken tulong panagbasa.",
-      hil: "Ang inyo maalwan nga paghatag makabulig sa mga gastos sa AI sang Bible Diary. Ang parte sang inyo donasyon ihatag man sa misyon sang aton simbahan kag mga serbisyo sa komunidad.",
+      en: "Your generous contribution will help pay for the AI expenses of Daily Healing Word. A part of your donation will be given to church missions, general ministries, and community services.",
+      fil: "Ang inyong masayang pagbibigay ay makatutulong sa gastusin sa AI ng Daily Healing Word. Ang bahagi ng inyong handog ay ibabahagi rin sa mga misyon ng simbahan, pangkalahatang ministeryo, at serbisyo sa komunidad.",
+      ceb: "Ang inyong manggihatagon nga paghatag makatabang sa pagbayad sa mga AI nga gasto sa Daily Healing Word. Ang bahin sa inyong donasyon ihalad usab sa mga misyon sa simbahan, kinatibuk-ang ministeryo, ug serbisyo sa komunidad.",
+      bik: "An saimong maugmang pag-alay makakatabang sa mga gastos sa AI kan Daily Healing Word. An parte kan saimong donasyon itatao sa mga misyon kan simbahan, pangkalahatang ministeryo, asin serbisyo sa komunidad.",
+      ilo: "Ti naimpusoan a datonyo ket makatulong a mangbayad iti gastusen ti AI ti Daily Healing Word. Ti dadduma a paset ti donasionyo ket maidaton met iti mision ti simbaan, sabsabali a ministeryo, ken tulong panagbasa.",
+      hil: "Ang inyo maalwan nga paghatag makabulig sa mga gastos sa AI sang Daily Healing Word. Ang parte sang inyo donasyon ihatag man sa misyon sang aton simbahan kag mga serbisyo sa komunidad.",
     },
     detailsHeader: {
       en: "Offering Details",
@@ -615,10 +615,10 @@ export function DonationModal({
                           try {
                             // Selectively clear cache keys but preserve user's Bible study chats, theme, and language
                             const preservedKeys = [
-                              "biblesphere_sessions",
-                              "biblesphere_lang",
-                              "biblesphere_theme",
-                              "biblesphere_active_id",
+                              STORAGE_KEYS.sessions,
+                              STORAGE_KEYS.language,
+                              STORAGE_KEYS.theme,
+                              STORAGE_KEYS.activeId,
                             ];
                             const keysToKeep = preservedKeys.map((k) => ({
                               key: k,

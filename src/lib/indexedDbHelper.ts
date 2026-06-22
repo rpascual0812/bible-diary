@@ -5,7 +5,7 @@
 
 import { ChatSession } from "../App";
 
-const DB_NAME = "BibleDiaryDB_v2";
+const DB_NAME = "DailyHealingWordDB_v2";
 const STORE_NAME = "sessions";
 const DB_VERSION = 1;
 

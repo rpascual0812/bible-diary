@@ -31,6 +31,12 @@ if (geminiApiKey && !process.env.EXPO_PUBLIC_GEMINI_API_KEY) {
   process.env.EXPO_PUBLIC_GEMINI_API_KEY = geminiApiKey;
 }
 
+if (process.env.EAS_BUILD === "true" && !geminiApiKey) {
+  console.warn(
+    "[app.config] GEMINI_API_KEY is missing for this EAS build. Cloud AI will not work in the APK until you set it with: eas env:create --name GEMINI_API_KEY --value <key> --environment preview --environment production",
+  );
+}
+
 const appJson = JSON.parse(
   fs.readFileSync(path.join(__dirname, "app.json"), "utf8"),
 );

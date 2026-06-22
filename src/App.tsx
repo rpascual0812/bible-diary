@@ -66,6 +66,7 @@ import {
   isGeminiQuotaError,
   resolveGeminiChatErrorMessage,
 } from "./lib/geminiErrors";
+import { migrateLegacyWebStorage, STORAGE_KEYS } from "./lib/appIdentity";
 import type { LangType } from "./types";
 import {
   sessionNeedsTranslation,
@@ -415,15 +416,15 @@ const getUiTranslation = (key: string, lang: LangType) => {
       el: "Εισήχθησαν {count} συνομιλίες.",
     },
     importError: {
-      en: "Could not import that file. Choose a valid Bible Diary export.",
-      fil: "Hindi ma-import ang file. Pumili ng wastong Bible Diary export.",
-      ceb: "Dili ma-import ang file. Pilia ang husto nga Bible Diary export.",
-      bik: "Dai ma-import an file. Pili an tama na Bible Diary export.",
-      ilo: "Saan a ma-import ti file. Agpili ti umno a Bible Diary export.",
-      hil: "Indi ma-import ang file. Pilia ang husto nga Bible Diary export.",
+      en: "Could not import that file. Choose a valid Daily Healing Word export.",
+      fil: "Hindi ma-import ang file. Pumili ng wastong Daily Healing Word export.",
+      ceb: "Dili ma-import ang file. Pilia ang husto nga Daily Healing Word export.",
+      bik: "Dai ma-import an file. Pili an tama na Daily Healing Word export.",
+      ilo: "Saan a ma-import ti file. Agpili ti umno a Daily Healing Word export.",
+      hil: "Indi ma-import ang file. Pilia ang husto nga Daily Healing Word export.",
       es: "No se pudo importar. Elige un archivo de exportación válido.",
-      la: "Importatio non potuit. Elige validum Bible Diary export.",
-      el: "Αποτυχία εισαγωγής. Επιλέξτε έγκυρο αρχείο Bible Diary.",
+      la: "Importatio non potuit. Elige validum Daily Healing Word export.",
+      el: "Αποτυχία εισαγωγής. Επιλέξτε έγκυρο αρχείο Daily Healing Word.",
     },
     introGuide: {
       en: "Introduction Guide",
@@ -469,7 +470,7 @@ const getUiTranslation = (key: string, lang: LangType) => {
       hil: "Siraon",
     },
     titleMain: {
-      en: "Bible Diary, Unbound.",
+      en: "Daily Healing Word.",
       fil: "Ang Buhay na Salita, Walang Hadlang.",
       ceb: "Ang Buhing Pulong, Walang Babag.",
       bik: "An Buhay na Tataramon, Daing Hadlang.",
@@ -477,12 +478,12 @@ const getUiTranslation = (key: string, lang: LangType) => {
       hil: "Ang Buhi nga Pulong, Wala sing Sablag.",
     },
     welcomeDesc: {
-      en: "Welcome to Bible Diary. Type any theology question or scripture phrase.",
-      fil: "Maligayang pagdating sa Bible Diary. Magtanong ng anuman katanungang teolohikal ukol sa Banal na Kasulatan.",
-      ceb: "Maayong pag-abot sa Bible Diary. Pangutana og bisan unsa nga teolohikal nga asoy mahitungod sa Balaang Kasulatan.",
-      bik: "Marhay na pag-abot sa Bible Diary. Maghapot nin anuman na katanungang teolohikal manungod sa Banal na Kasuratan.",
-      ilo: "Naimbag a panagparangyo ditoy Bible Diary. Agsaludsodkayo iti aniaman maipanggep iti teolohia ken Banal a Kasuratan.",
-      hil: "Maayo nga pag-abot sa Bible Diary. Mamangkot sang bisan ano nga teolohikal nga asoy nahanungod sa Balaan nga Kasulatan.",
+      en: "Welcome to Daily Healing Word. Type any theology question or scripture phrase.",
+      fil: "Maligayang pagdating sa Daily Healing Word. Magtanong ng anuman katanungang teolohikal ukol sa Banal na Kasulatan.",
+      ceb: "Maayong pag-abot sa Daily Healing Word. Pangutana og bisan unsa nga teolohikal nga asoy mahitungod sa Balaang Kasulatan.",
+      bik: "Marhay na pag-abot sa Daily Healing Word. Maghapot nin anuman na katanungang teolohikal manungod sa Banal na Kasuratan.",
+      ilo: "Naimbag a panagparangyo ditoy Daily Healing Word. Agsaludsodkayo iti aniaman maipanggep iti teolohia ken Banal a Kasuratan.",
+      hil: "Maayo nga pag-abot sa Daily Healing Word. Mamangkot sang bisan ano nga teolohikal nga asoy nahanungod sa Balaan nga Kasulatan.",
     },
     offlineBanner: {
       en: " Currently operating in fully cached Offline Mode. You can query anytime.",
@@ -621,12 +622,12 @@ const getUiTranslation = (key: string, lang: LangType) => {
       hil: "Magpili sang Giya sa Pagtuon",
     },
     placeholderOnline: {
-      en: "Search Bible Diary...",
-      fil: "Magsaliksik sa Bible Diary...",
-      ceb: "Pangitaa ang Bible Diary...",
-      bik: "Magsaliksik sa Bible Diary...",
-      ilo: "Sarakem ti Bible Diary...",
-      hil: "Pangitaa ang Bible Diary...",
+      en: "Search Daily Healing Word...",
+      fil: "Magsaliksik sa Daily Healing Word...",
+      ceb: "Pangitaa ang Daily Healing Word...",
+      bik: "Magsaliksik sa Daily Healing Word...",
+      ilo: "Sarakem ti Daily Healing Word...",
+      hil: "Pangitaa ang Daily Healing Word...",
     },
     placeholderOffline: {
       en: "Ask offline database (e.g. peace, hope, Jesus)...",
@@ -660,7 +661,8 @@ export default function App() {
   // Lang preference state (en / fil / ceb / bik / ilo / hil)
   const [language, setLanguage] = useState<LangType>(() => {
     try {
-      return (localStorage.getItem("biblesphere_lang") as LangType) || "en";
+      migrateLegacyWebStorage();
+      return (localStorage.getItem(STORAGE_KEYS.language) as LangType) || "en";
     } catch (e) {
       return "en";
     }
@@ -669,7 +671,7 @@ export default function App() {
   // Theme state
   const [theme, setTheme] = useState<ThemeId>(() => {
     try {
-      return normalizeTheme(localStorage.getItem("biblesphere_theme"));
+      return normalizeTheme(localStorage.getItem(STORAGE_KEYS.theme));
     } catch (e) {
       return "light";
     }
@@ -677,7 +679,7 @@ export default function App() {
 
   const changeTheme = (next: ThemeId) => {
     setTheme(next);
-    localStorage.setItem("biblesphere_theme", next);
+    localStorage.setItem(STORAGE_KEYS.theme, next);
   };
 
   useEffect(() => {
@@ -733,7 +735,7 @@ export default function App() {
   // Retrieve sessions from LocalStorage
   const [sessions, setSessions] = useState<ChatSession[]>(() => {
     try {
-      const saved = localStorage.getItem("biblesphere_sessions");
+      const saved = localStorage.getItem(STORAGE_KEYS.sessions);
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
@@ -742,7 +744,7 @@ export default function App() {
 
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() => {
     try {
-      return localStorage.getItem("biblesphere_active_id") || null;
+      return localStorage.getItem(STORAGE_KEYS.activeId) || null;
     } catch (e) {
       return null;
     }
@@ -759,7 +761,7 @@ export default function App() {
         if (!active) return;
 
         if (storedDB && storedDB.length > 0) {
-          const storedLSString = localStorage.getItem("biblesphere_sessions");
+          const storedLSString = localStorage.getItem(STORAGE_KEYS.sessions);
           const storedLS: ChatSession[] = storedLSString
             ? JSON.parse(storedLSString)
             : [];
@@ -772,18 +774,18 @@ export default function App() {
             console.log("Syncing: Restored chats from IndexedDB backup.");
             setSessions(storedDB);
             localStorage.setItem(
-              "biblesphere_sessions",
+              STORAGE_KEYS.sessions,
               JSON.stringify(storedDB),
             );
 
-            const currentActive = localStorage.getItem("biblesphere_active_id");
+            const currentActive = localStorage.getItem(STORAGE_KEYS.activeId);
             const stillExists = storedDB.some((s) => s.id === currentActive);
             const nextActive = stillExists
               ? currentActive
-              : pickFallbackSessionId(storedDB) ?? storedDB[0]?.id ?? null;
+              : (pickFallbackSessionId(storedDB) ?? storedDB[0]?.id ?? null);
             if (nextActive && nextActive !== currentActive) {
               setActiveSessionId(nextActive);
-              localStorage.setItem("biblesphere_active_id", nextActive);
+              localStorage.setItem(STORAGE_KEYS.activeId, nextActive);
             }
           }
         } else if (sessions.length > 0) {
@@ -926,20 +928,23 @@ export default function App() {
 
   const chatHistoryTrapped = useRef(false);
 
-  const refreshVerseSuggestions = useCallback(async (exclude: string[] = []) => {
-    setVerseSuggestionsLoading(true);
-    const references = pickRandomVerseReferences(SUGGESTION_COUNT, exclude);
-    try {
-      const loaded = await loadVerseSuggestions(references);
-      setVerseSuggestions(loaded);
-    } catch {
-      setVerseSuggestions(
-        references.map((reference) => ({ reference, text: "" })),
-      );
-    } finally {
-      setVerseSuggestionsLoading(false);
-    }
-  }, []);
+  const refreshVerseSuggestions = useCallback(
+    async (exclude: string[] = []) => {
+      setVerseSuggestionsLoading(true);
+      const references = pickRandomVerseReferences(SUGGESTION_COUNT, exclude);
+      try {
+        const loaded = await loadVerseSuggestions(references);
+        setVerseSuggestions(loaded);
+      } catch {
+        setVerseSuggestions(
+          references.map((reference) => ({ reference, text: "" })),
+        );
+      } finally {
+        setVerseSuggestionsLoading(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     void refreshVerseSuggestions();
@@ -958,7 +963,7 @@ export default function App() {
   const selectSession = useCallback(
     (id: string, recordHistory = false) => {
       setActiveSessionId(id);
-      localStorage.setItem("biblesphere_active_id", id);
+      localStorage.setItem(STORAGE_KEYS.activeId, id);
       setShowHomeScreen(false);
       if (
         recordHistory &&
@@ -1034,7 +1039,7 @@ export default function App() {
         sessionHasMessages(currentSessions, state.sessionId)
       ) {
         setActiveSessionId(state.sessionId);
-        localStorage.setItem("biblesphere_active_id", state.sessionId);
+        localStorage.setItem(STORAGE_KEYS.activeId, state.sessionId);
         setShowHomeScreen(false);
       } else if (
         sessionHasMessages(currentSessions, currentActiveId) ||
@@ -1090,9 +1095,9 @@ export default function App() {
     const onPageShow = (event: PageTransitionEvent) => {
       if (!event.persisted) return;
       try {
-        const saved = localStorage.getItem("biblesphere_sessions");
+        const saved = localStorage.getItem(STORAGE_KEYS.sessions);
         const parsed: ChatSession[] = saved ? JSON.parse(saved) : [];
-        const activeId = localStorage.getItem("biblesphere_active_id");
+        const activeId = localStorage.getItem(STORAGE_KEYS.activeId);
         setSessions(parsed);
         setActiveSessionId(activeId);
         setShowHomeScreen(true);
@@ -1115,7 +1120,7 @@ export default function App() {
   const saveSessions = (updatedSessions: ChatSession[]) => {
     setSessions(updatedSessions);
     localStorage.setItem(
-      "biblesphere_sessions",
+      STORAGE_KEYS.sessions,
       JSON.stringify(updatedSessions),
     );
     saveSessionsToIndexedDB(updatedSessions).catch((e) => {
@@ -1144,9 +1149,7 @@ export default function App() {
           targetLang,
         );
         saveSessions(
-          sessionsRef.current.map((s) =>
-            s.id === sessionId ? translated : s,
-          ),
+          sessionsRef.current.map((s) => (s.id === sessionId ? translated : s)),
         );
       } catch (error) {
         console.error("Translation failed:", error);
@@ -1181,7 +1184,7 @@ export default function App() {
     if (newLang === language) return;
 
     setLanguage(newLang);
-    localStorage.setItem("biblesphere_lang", newLang);
+    localStorage.setItem(STORAGE_KEYS.language, newLang);
     geminiRef.current?.setLanguage(newLang);
 
     const session = sessions.find((s) => s.id === activeSessionId);
@@ -1231,7 +1234,7 @@ export default function App() {
     const updated = [newSession, ...sessions];
     saveSessions(updated);
     setActiveSessionId(newId);
-    localStorage.setItem("biblesphere_active_id", newId);
+    localStorage.setItem(STORAGE_KEYS.activeId, newId);
     setShowHomeScreen(false);
     chatHistoryTrapped.current = false;
     return newId;
@@ -1254,13 +1257,13 @@ export default function App() {
     if (activeSessionId === id) {
       const nextActive =
         updated.length > 0
-          ? pickFallbackSessionId(updated) ?? updated[0].id
+          ? (pickFallbackSessionId(updated) ?? updated[0].id)
           : null;
       setActiveSessionId(nextActive);
       if (nextActive) {
-        localStorage.setItem("biblesphere_active_id", nextActive);
+        localStorage.setItem(STORAGE_KEYS.activeId, nextActive);
       } else {
-        localStorage.removeItem("biblesphere_active_id");
+        localStorage.removeItem(STORAGE_KEYS.activeId);
         setShowHomeScreen(true);
       }
     }
@@ -1319,9 +1322,9 @@ export default function App() {
       saveSessions(merged);
       setActiveSessionId(nextActive);
       if (nextActive) {
-        localStorage.setItem("biblesphere_active_id", nextActive);
+        localStorage.setItem(STORAGE_KEYS.activeId, nextActive);
       } else {
-        localStorage.removeItem("biblesphere_active_id");
+        localStorage.removeItem(STORAGE_KEYS.activeId);
       }
       window.alert(
         getUiTranslation("importSuccess", language).replace(
@@ -1393,7 +1396,7 @@ export default function App() {
     }
     saveSessions(sList);
     setActiveSessionId(sessionId);
-    localStorage.setItem("biblesphere_active_id", sessionId!);
+    localStorage.setItem(STORAGE_KEYS.activeId, sessionId!);
     const enteringChat = showHomeScreen;
     setShowHomeScreen(false);
     if (enteringChat && typeof window !== "undefined") {
@@ -1475,7 +1478,10 @@ export default function App() {
       )}
     >
       {isFloralTheme(theme) && (
-        <div className="floral-backdrop fixed inset-0 pointer-events-none z-0" aria-hidden />
+        <div
+          className="floral-backdrop fixed inset-0 pointer-events-none z-0"
+          aria-hidden
+        />
       )}
       <AnimatePresence>
         {showSplash && (
@@ -1498,7 +1504,7 @@ export default function App() {
                 <div className="absolute -inset-2 rounded-full bg-gradient-to-tr from-[#D4AF37]/30 to-[#8E6E2E]/30 blur-2xl opacity-75"></div>
                 <img
                   src={brandLogo}
-                  alt="Bible Diary Logo"
+                  alt="Daily Healing Word Logo"
                   className="relative w-40 h-40 rounded-full object-cover shadow-2xl border border-amber-500/20 select-none"
                   referrerPolicy="no-referrer"
                 />
@@ -1512,7 +1518,7 @@ export default function App() {
               >
                 <h1 className="text-3xl md:text-4xl font-display font-light tracking-wider">
                   <span className="gold-gradient font-semibold">
-                    Bible Diary
+                    Daily Healing Word
                   </span>
                 </h1>
                 <p
@@ -1521,7 +1527,7 @@ export default function App() {
                     isDarkTheme(theme) ? "text-slate-500" : "text-slate-400",
                   )}
                 >
-                  Bible Companion & Study Guide
+                  Healing Word Companion
                 </p>
               </motion.div>
 
@@ -1579,7 +1585,7 @@ export default function App() {
           <div className="flex items-center gap-3">
             <img
               src={brandLogo}
-              alt="Bible Diary Logo"
+              alt="Daily Healing Word Logo"
               className="w-8 h-8 rounded-lg object-cover shadow-md shadow-yellow-500/10 border border-amber-500/20 select-none animate-fade-in"
               referrerPolicy="no-referrer"
             />
@@ -1972,7 +1978,7 @@ export default function App() {
                   <div className="absolute -inset-1 rounded-3xl bg-gradient-to-tr from-[#D4AF37]/20 to-[#8E6E2E]/20 blur-xl opacity-60 group-hover:opacity-100 transition duration-1000"></div>
                   <img
                     src={brandLogo}
-                    alt="Bible Diary Logo"
+                    alt="Daily Healing Word Logo"
                     className="relative w-24 h-24 rounded-3xl object-cover shadow-xl border border-amber-500/15 select-none transition-all duration-500 hover:scale-105"
                     referrerPolicy="no-referrer"
                   />
@@ -2079,7 +2085,9 @@ export default function App() {
                   type="button"
                   onClick={() =>
                     void refreshVerseSuggestions(
-                      verseSuggestions.map((suggestion) => suggestion.reference),
+                      verseSuggestions.map(
+                        (suggestion) => suggestion.reference,
+                      ),
                     )
                   }
                   disabled={verseSuggestionsLoading}

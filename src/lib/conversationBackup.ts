@@ -1,10 +1,11 @@
 import type { ChatSession } from "../types";
+import { APP_NAME, APP_NAME_LEGACY } from "./appIdentity";
 
 export const BACKUP_VERSION = 1;
 
 export interface ConversationBackup {
   version: number;
-  app: "Bible Diary";
+  app: typeof APP_NAME | typeof APP_NAME_LEGACY;
   exportedAt: string;
   activeSessionId: string | null;
   sessions: ChatSession[];
@@ -38,7 +39,7 @@ export function getBackupFilename(date = new Date()): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
-  return `Bible Diary-${y}-${m}-${d}.json`;
+  return `${APP_NAME}-${y}-${m}-${d}.json`;
 }
 
 export function buildBackupPayload(
@@ -47,7 +48,7 @@ export function buildBackupPayload(
 ): ConversationBackup {
   return {
     version: BACKUP_VERSION,
-    app: "Bible Diary",
+    app: APP_NAME,
     exportedAt: new Date().toISOString(),
     activeSessionId,
     sessions,
@@ -79,10 +80,15 @@ export function parseBackupJson(raw: string): ConversationBackup {
     throw new Error("no_sessions");
   }
 
+  const appName =
+    backup.app === APP_NAME || backup.app === APP_NAME_LEGACY
+      ? APP_NAME
+      : APP_NAME;
+
   return {
     version:
       typeof backup.version === "number" ? backup.version : BACKUP_VERSION,
-    app: "Bible Diary",
+    app: appName,
     exportedAt:
       typeof backup.exportedAt === "string"
         ? backup.exportedAt

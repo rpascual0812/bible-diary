@@ -1316,7 +1316,7 @@ export function getOfflineAnswer(query: string, lang: LangType): string {
   }
 
   if (lang === "fil") {
-    return `## Bible Diary Offline Study Companion
+    return `## Daily Healing Word Offline Study Companion
 
 Kasalukuyan kang **offline** at nagbabasa mula sa aming lokal na database ng Banal na Kasulatan.
 
@@ -1332,7 +1332,7 @@ Hindi ko mahahanap ang partikular na sagot para sa iyong tanong na **"${query}"*
   }
 
   if (lang === "ceb") {
-    return `## Bible Diary Offline Kaluwasan ug Pagtuon nga Kauban
+    return `## Daily Healing Word Offline Kaluwasan ug Pagtuon nga Kauban
 
 Kasalukuyan ka nga **offline** ug nagabasa gikan sa atong lokal nga database sa Balaang Kasulatan.
 
@@ -1348,7 +1348,7 @@ Wala nako makit-i ang piho nga tubag alang sa imong pangutana nga **"${query}"**
   }
 
   if (lang === "bik") {
-    return `## Bible Diary Offline Kaluwasan asin Pag-aaral na Kaiba
+    return `## Daily Healing Word Offline Kaluwasan asin Pag-aaral na Kaiba
 
 Kasalukuyan kang **offline** asin nagbabasa gikan sa satong lokal na database kan Banal na Kasuratan.
 
@@ -1364,7 +1364,7 @@ Dai ko nahanap an pihong simbag para sa saimong hapot na **"${query}"** sa saton
   }
 
   if (lang === "ilo") {
-    return `## Bible Diary Offline Pangsurot ken Pangkatulongan iti Pagkararagan
+    return `## Daily Healing Word Offline Pangsurot ken Pangkatulongan iti Pagkararagan
 
 Kasalukuyankay a **offline** ken agsarsarak manipud iti lokal a database ti Banal a Kasuratan.
 
@@ -1380,7 +1380,7 @@ Saan ko a nasarakan ti umisu a sungbat maipaay iti saludsodyo a **"${query}"** k
   }
 
   if (lang === "hil") {
-    return `## Bible Diary Offline Katimbang sa Pagtuon
+    return `## Daily Healing Word Offline Katimbang sa Pagtuon
 
 Kasalukuyan ikaw nga **offline** kag nagabasa gikan sa aton lokal nga database sang Balaan nga Kasulatan.
 
@@ -1396,7 +1396,7 @@ Wala nako makit-an ang pat-od nga tubag para sa imo pamangkot nga **"${query}"**
   }
 
   // Generic fallback if we can't find direct answers
-  return `## Bible Diary Offline Study Companion
+  return `## Daily Healing Word Offline Study Companion
 
 You are currently **offline**, reading from our local Scripture database. 
 

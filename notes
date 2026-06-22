@@ -4,32 +4,94 @@ eas login
 eas build:configure
 
 {
-  "cli": {
-    "version": ">= 0.52.0"
-  },
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
-    },
-    "preview": {
-      "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      }
-    },
-    "production": {
-      "android": {
-        "buildType": "app-bundle"
-      }
-    }
-  },
-  "submit": {
-    "production": {}
-  }
+"cli": {
+"version": ">= 0.52.0"
+},
+"build": {
+"development": {
+"developmentClient": true,
+"distribution": "internal"
+},
+"preview": {
+"distribution": "internal",
+"android": {
+"buildType": "apk"
+}
+},
+"production": {
+"android": {
+"buildType": "app-bundle"
+}
+}
+},
+"submit": {
+"production": {}
+}
 }
 
 eas build --platform android --profile preview
+eas env:create --name GEMINI_API_KEY --value KEY --environment preview --environment production
 
 # local
+
 eas build --platform android --profile preview --local
+
+#############################################
+
+# Short Description
+
+A conversational Bible companion for study, reflection, and scripture exploration.
+
+# Full Description
+
+Daily Healing Word, Unbound.
+
+Daily Healing Word is a conversational Bible companion that helps you explore Scripture through thoughtful dialogue, saved study sessions, and verse discovery—whether you are preparing for devotion, answering a theological question, or simply reflecting on God’s Word.
+
+Study Scripture through conversation Ask questions about the Bible, theology, and biblical history in natural language. Daily Healing Word is designed to stay focused on the Holy Scriptures, offering clear, compassionate answers with scripture references whenever possible.
+
+Start with inspiration Open the app to verse suggestions that invite you into study. Tap a verse to begin a conversation, or type your own question—about a passage, a character, a theme, or a doctrine you want to understand more deeply.
+
+Your personal Bible study diary Every conversation can be saved as a study session. Return to past discussions, rename or organize your studies, and continue where you left off. Import and export your conversations to back up your journal or move it to another device.
+
+Read and listen Look up Bible verses directly in the app. Use the built-in voice reader to hear responses aloud—helpful for devotion time, accessibility, or hands-free study.
+
+Multilingual support Daily Healing Word supports English, Filipino, Cebuano, Bikol, Ilocano, Hiligaynon, Spanish, Latin, and Greek. Switch languages anytime; your active study can be translated so you can continue in the language you prefer.
+
+Works online and offline When you are connected, Daily Healing Word uses cloud AI for rich, contextual answers. When you are offline, the app falls back to a built-in Bible study database so you can still explore common topics and passages without an internet connection.
+
+Beautiful, calm design Choose from light, dark, and artistic themes—including floral-inspired palettes—to create a study environment that feels peaceful and personal.
+
+Built for reflection, not noise Daily Healing Word is crafted for sincere exploration of Scripture: wise in tone, respectful in approach, and focused on helping you engage with the Bible more deeply.
+
+Whether you are a lifelong believer, a new reader of Scripture, or someone curious about what the Bible teaches, Daily Healing Word offers a gentle, structured way to study God’s Word—one conversation at a time.
+
+Note: Daily Healing Word uses AI to assist with Bible study. Responses are meant to support reflection and learning; they should not replace pastoral counsel, denominational teaching, or your own prayerful reading of Scripture.
+
+#############################################
+
+# Google Play signing (wrong key error)
+
+Play Console expects the UPLOAD key from your first upload. After renaming the package to com.rpascual.studio.dailyhealingword, EAS created a NEW keystore — so the latest AAB is signed with a different key.
+
+Upload key Google expects (first production AAB, Jun 16):
+SHA-256: CC:CD:5F:B8:00:85:FD:2C:47:A0:2B:A7:76:B3:6D:E0:41:AA:DE:8C:DA:68:C9:D7:E7:38:CE:EB:54:95:E0:2F
+AAB: https://expo.dev/artifacts/eas/c_Icpjj5YtuzoryekuTnp2I6oAcFpSrcZPzPNvC23uI.aab
+EAS credentials: Build Credentials 2eZK_CYhH3
+
+Latest AAB (wrong key for Play if first upload was above):
+SHA-256: 4C:6F:33:61:00:16:02:0F:B0:04:B5:8B:7B:94:4C:64:14:11:19:0E:E3:F1:23:49:6E:A6:CE:B3:18:F5:0F:54
+AAB: https://expo.dev/artifacts/eas/frz6b6eoSDVaIDzOphlXfFLJwiCERPSeqNsNnkhZLHc.aab
+EAS credentials: Build Credentials QFUa45gc7Z
+
+FIX (recommended):
+
+1. Open https://expo.dev/accounts/rpascual0812/projects/bible-diary/credentials
+2. Android → com.rpascual.studio.dailyhealingword
+3. Set default keystore to the SAME one as com.rpascual.studio.biblediary (fingerprint CC:CD:5F:B8...)
+4. Rebuild: eas build --platform android --profile production --non-interactive
+5. Upload new .aab (versionCode 3+)
+
+OR if Play app is still com.rpascual.studio.biblediary, upload the Jun 16 AAB link above directly.
+
+OR Play Console → App signing → Request upload key reset (if no production release yet), then use the new keystore.
