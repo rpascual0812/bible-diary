@@ -10,6 +10,8 @@ export const LANGUAGE_NAMES: Record<LangType, string> = {
   es: "Spanish",
   la: "Latin",
   el: "Greek",
+  pt: "Portuguese",
+  fr: "French",
 };
 
 export const LANG_OPTIONS: { code: LangType; label: string; native?: string }[] = [
@@ -20,6 +22,8 @@ export const LANG_OPTIONS: { code: LangType; label: string; native?: string }[] 
   { code: "ilo", label: "Ilocano", native: "Ilokano" },
   { code: "hil", label: "Hiligaynon", native: "Hiligaynon" },
   { code: "es", label: "Spanish", native: "Español" },
+  { code: "pt", label: "Portuguese", native: "Português" },
+  { code: "fr", label: "French", native: "Français" },
   { code: "la", label: "Latin", native: "Latina" },
   { code: "el", label: "Greek", native: "Ελληνικά" },
 ];

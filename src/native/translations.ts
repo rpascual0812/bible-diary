@@ -1,4 +1,5 @@
 import type { LangType } from "../types";
+import { resolvePtFrTranslation } from "../lib/langPtFr";
 import { LANG_OPTIONS } from "../languages";
 
 export { LANG_OPTIONS };
@@ -521,6 +522,17 @@ const strings = {
     la: "Thema applicationis",
     el: "Θέμα εφαρμογής",
   },
+  bibleVersionLabel: {
+    en: "Bible Version",
+    fil: "Bersyon ng Bibliya",
+    ceb: "Bersyon sa Bibliya",
+    bik: "Bersyon kan Biblia",
+    ilo: "Bersion ti Biblia",
+    hil: "Bersyon sang Biblia",
+    es: "Versión de la Biblia",
+    la: "Versio Bibliorum",
+    el: "Έκδοση Βίβλου",
+  },
   themeLight: {
     en: "Light",
     fil: "Light",
@@ -624,6 +636,10 @@ const strings = {
 
 export function t(key: keyof typeof strings, lang: LangType): string {
   const entry = strings[key];
-  return (entry as Record<string, string>)[lang] ?? entry.en;
+  const direct = (entry as Record<string, string>)[lang];
+  if (direct) return direct;
+  const ptFr = resolvePtFrTranslation(key, lang, entry.en);
+  if (ptFr) return ptFr;
+  return entry.en;
 }
 

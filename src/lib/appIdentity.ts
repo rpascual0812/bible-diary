@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   activeId: "dailyhealingword_active_id",
   language: "dailyhealingword_lang",
   theme: "dailyhealingword_theme",
+  bibleTranslation: "dailyhealingword_bible_translation",
   dailyVerse: "dailyhealingword_daily_verse",
 } as const;
 
@@ -17,6 +18,7 @@ const LEGACY_STORAGE_KEYS: Record<keyof typeof STORAGE_KEYS, string> = {
   activeId: "biblesphere_active_id",
   language: "biblesphere_lang",
   theme: "biblesphere_theme",
+  bibleTranslation: "biblesphere_bible_translation",
   dailyVerse: "biblesphere_daily_verse",
 };
 

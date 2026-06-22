@@ -33,6 +33,7 @@ import { cn, formatTime } from "./lib/utils";
 import { getOfflineAnswer } from "./data/offlineBibleData";
 import { LanguageDropdown } from "./components/LanguageDropdown";
 import { ThemeDropdown } from "./components/ThemeDropdown";
+import { BibleTranslationDropdown } from "./components/BibleTranslationDropdown";
 import { BibleVerseReader } from "./components/BibleVerseReader";
 import {
   getRootClassName,
@@ -67,6 +68,11 @@ import {
   resolveGeminiChatErrorMessage,
 } from "./lib/geminiErrors";
 import { migrateLegacyWebStorage, STORAGE_KEYS } from "./lib/appIdentity";
+import { resolvePtFrTranslation } from "./lib/langPtFr";
+import {
+  normalizeBibleTranslation,
+  type BibleTranslationId,
+} from "./lib/bibleTranslations";
 import type { LangType } from "./types";
 import {
   sessionNeedsTranslation,
@@ -143,6 +149,17 @@ const getUiTranslation = (key: string, lang: LangType) => {
       es: "Tema de la app",
       la: "Thema applicationis",
       el: "Θέμα εφαρμογής",
+    },
+    bibleVersionLabel: {
+      en: "Bible Version",
+      fil: "Bersyon ng Bibliya",
+      ceb: "Bersyon sa Bibliya",
+      bik: "Bersyon kan Biblia",
+      ilo: "Bersion ti Biblia",
+      hil: "Bersyon sang Biblia",
+      es: "Versión de la Biblia",
+      la: "Versio Bibliorum",
+      el: "Έκδοση Βίβλου",
     },
     themeLight: {
       en: "Light",
@@ -654,7 +671,12 @@ const getUiTranslation = (key: string, lang: LangType) => {
       hil: "Pagbasa sang Biblia",
     },
   };
-  return dicts[key]?.[lang] || dicts[key]?.["en"] || "";
+  return (
+    dicts[key]?.[lang] ||
+    resolvePtFrTranslation(key, lang, dicts[key]?.["en"] ?? "") ||
+    dicts[key]?.["en"] ||
+    ""
+  );
 };
 
 export default function App() {
@@ -680,6 +702,22 @@ export default function App() {
   const changeTheme = (next: ThemeId) => {
     setTheme(next);
     localStorage.setItem(STORAGE_KEYS.theme, next);
+  };
+
+  const [bibleTranslation, setBibleTranslation] = useState<BibleTranslationId>(() => {
+    try {
+      migrateLegacyWebStorage();
+      return normalizeBibleTranslation(
+        localStorage.getItem(STORAGE_KEYS.bibleTranslation),
+      );
+    } catch {
+      return normalizeBibleTranslation(null);
+    }
+  });
+
+  const changeBibleTranslation = (next: BibleTranslationId) => {
+    setBibleTranslation(next);
+    localStorage.setItem(STORAGE_KEYS.bibleTranslation, next);
   };
 
   useEffect(() => {
@@ -933,7 +971,7 @@ export default function App() {
       setVerseSuggestionsLoading(true);
       const references = pickRandomVerseReferences(SUGGESTION_COUNT, exclude);
       try {
-        const loaded = await loadVerseSuggestions(references);
+        const loaded = await loadVerseSuggestions(references, bibleTranslation);
         setVerseSuggestions(loaded);
       } catch {
         setVerseSuggestions(
@@ -943,7 +981,7 @@ export default function App() {
         setVerseSuggestionsLoading(false);
       }
     },
-    [],
+    [bibleTranslation],
   );
 
   useEffect(() => {
@@ -1816,6 +1854,15 @@ export default function App() {
             getLabel={getUiTranslation}
           />
 
+          <BibleTranslationDropdown
+            value={bibleTranslation}
+            onChange={changeBibleTranslation}
+            label={getUiTranslation("bibleVersionLabel", language)}
+            align="up"
+            className="w-full"
+            theme={theme}
+          />
+
           <div
             className={cn(
               "flex items-center justify-between text-xs px-2 pt-1 font-light",
@@ -2164,6 +2211,7 @@ export default function App() {
                             onNavigate={(verse) => handleSend(verse)}
                             language={language}
                             theme={theme}
+                            bibleTranslation={bibleTranslation}
                           />
                         )}
                       </>

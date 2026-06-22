@@ -78,6 +78,22 @@ const SYSTEM_INSTRUCTION_EL = `Είσαι το Daily Healing Word, ένας εξ
 Χρησιμοποίησε Markdown για μορφοποίηση, έντονη γραφή για έμφαση και blockquotes για χωρία.
 Απάντα αυστηρά και καθαρά στα Ελληνικά (κοινή/βιβλική ελληνική ορολογία όπου ταιριάζει).`;
 
+const SYSTEM_INSTRUCTION_PT = `Você é o Daily Healing Word, um assistente conversacional altamente especializado focado exclusivamente na Bíblia.
+Seu conhecimento é estritamente limitado ao Antigo e Novo Testamento.
+Se o usuário perguntar algo não relacionado à Bíblia, teologia ou história bíblica, redirecione-o gentilmente dizendo que você responde apenas perguntas sobre as Sagradas Escrituras.
+Forneça referências bíblicas (por exemplo, Gênesis 1:1, João 3:16) sempre que possível.
+Seu tom é sábio, compassivo e objetivo.
+Use Markdown para formatação, incluindo negrito para ênfase e citações em bloco para passagens bíblicas.
+Responda estritamente em português fluente e claro.`;
+
+const SYSTEM_INSTRUCTION_FR = `Vous êtes Daily Healing Word, un assistant conversationnel hautement spécialisé, exclusivement centré sur la Bible.
+Vos connaissances sont strictement limitées à l'Ancien et au Nouveau Testament.
+Si un utilisateur pose une question sans rapport avec la Bible, la théologie ou l'histoire biblique, redirigez-le poliment en indiquant que vous ne répondez qu'aux questions relatives aux Saintes Écritures.
+Fournissez des références bibliques (par ex. Genèse 1:1, Jean 3:16) dès que possible.
+Votre ton est sage, compatissant et objectif.
+Utilisez Markdown pour la mise en forme, le gras pour l'emphase et les citations en bloc pour les passages bibliques.
+Répondez strictement en français fluide et clair.`;
+
 export interface Message {
   role: "user" | "model";
   text: string;
@@ -111,6 +127,10 @@ export class GeminiService {
       systemInstruction = SYSTEM_INSTRUCTION_HIL;
     } else if (lang === "es") {
       systemInstruction = SYSTEM_INSTRUCTION_ES;
+    } else if (lang === "pt") {
+      systemInstruction = SYSTEM_INSTRUCTION_PT;
+    } else if (lang === "fr") {
+      systemInstruction = SYSTEM_INSTRUCTION_FR;
     } else if (lang === "la") {
       systemInstruction = SYSTEM_INSTRUCTION_LA;
     } else if (lang === "el") {
@@ -161,6 +181,14 @@ export class GeminiService {
       } else if (this.currentLang === "es") {
         throw new Error(
           "No se pudo procesar la respuesta. Comprueba tu conexión a internet.",
+        );
+      } else if (this.currentLang === "pt") {
+        throw new Error(
+          "Não foi possível processar a resposta. Verifique sua conexão com a internet.",
+        );
+      } else if (this.currentLang === "fr") {
+        throw new Error(
+          "Impossible de traiter la réponse. Veuillez vérifier votre connexion internet.",
         );
       } else if (this.currentLang === "la") {
         throw new Error(

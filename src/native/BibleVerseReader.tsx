@@ -17,11 +17,16 @@ import {
   getPrevChapterRef,
   type ChapterVerse,
 } from "../lib/bibleVerse";
+import {
+  getBibleTranslationAbbreviation,
+  type BibleTranslationId,
+} from "../lib/bibleTranslations";
 
 interface NativeBibleVerseReaderProps {
   query: string;
   onNavigate: (verseRef: string) => void;
   language: LangType;
+  bibleTranslation: BibleTranslationId;
   colors: {
     text: string;
     muted: string;
@@ -35,6 +40,7 @@ export function NativeBibleVerseReader({
   query,
   onNavigate,
   language,
+  bibleTranslation,
   colors,
   isDark,
 }: NativeBibleVerseReaderProps) {
@@ -62,7 +68,7 @@ export function NativeBibleVerseReader({
       setVerseText("");
 
       try {
-        const text = await fetchVerseText(verseInfo);
+        const text = await fetchVerseText(verseInfo, bibleTranslation);
         if (active) setVerseText(text);
       } catch {
         if (active) setError("verse");
@@ -75,7 +81,7 @@ export function NativeBibleVerseReader({
     return () => {
       active = false;
     };
-  }, [query, verseInfo]);
+  }, [query, verseInfo, bibleTranslation]);
 
   if (!verseInfo) return null;
 
@@ -97,7 +103,7 @@ export function NativeBibleVerseReader({
     setChapterError(null);
 
     try {
-      setChapterVerses(await fetchChapterVerses(verseInfo));
+      setChapterVerses(await fetchChapterVerses(verseInfo, bibleTranslation));
     } catch {
       setChapterError("chapter");
     } finally {
@@ -116,9 +122,14 @@ export function NativeBibleVerseReader({
       ]}
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Text style={styles.headerTitle} numberOfLines={2}>
-          {labels.title}: {currentVerseRef}
-        </Text>
+        <View style={styles.headerTopRow}>
+          <Text style={styles.headerTitle} numberOfLines={2}>
+            {labels.title}: {currentVerseRef}
+          </Text>
+          <Text style={[styles.translationBadge, { color: colors.muted, borderColor: colors.border }]}>
+            {getBibleTranslationAbbreviation(bibleTranslation)}
+          </Text>
+        </View>
         <Pressable
           onPress={handleToggleFullChapter}
           style={[styles.chapterToggle, { borderColor: colors.border, backgroundColor: colors.chip }]}
@@ -232,12 +243,28 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     gap: 8,
   },
+  headerTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 8,
+  },
   headerTitle: {
     color: "#D4AF37",
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 0.5,
     textTransform: "uppercase",
+    flex: 1,
+  },
+  translationBadge: {
+    fontSize: 10,
+    fontWeight: "700",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    overflow: "hidden",
   },
   chapterToggle: {
     alignSelf: "flex-start",

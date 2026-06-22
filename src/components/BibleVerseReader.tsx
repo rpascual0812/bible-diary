@@ -14,12 +14,17 @@ import {
   getPrevChapterRef,
   type ChapterVerse,
 } from "../lib/bibleVerse";
+import {
+  getBibleTranslationAbbreviation,
+  type BibleTranslationId,
+} from "../lib/bibleTranslations";
 
 interface BibleVerseReaderProps {
   query: string;
   onNavigate: (verseRef: string) => void;
   language: LangType;
   theme: ThemeId;
+  bibleTranslation: BibleTranslationId;
 }
 
 export function BibleVerseReader({
@@ -27,6 +32,7 @@ export function BibleVerseReader({
   onNavigate,
   language,
   theme,
+  bibleTranslation,
 }: BibleVerseReaderProps) {
   const verseInfo = useMemo(() => detectBibleVerse(query), [query]);
   const [verseText, setVerseText] = useState("");
@@ -54,7 +60,7 @@ export function BibleVerseReader({
       setVerseText("");
 
       try {
-        const text = await fetchVerseText(verseInfo);
+        const text = await fetchVerseText(verseInfo, bibleTranslation);
         if (active) setVerseText(text);
       } catch (err) {
         if (active) {
@@ -70,7 +76,7 @@ export function BibleVerseReader({
     return () => {
       active = false;
     };
-  }, [query, verseInfo]);
+  }, [query, verseInfo, bibleTranslation]);
 
   if (!verseInfo) return null;
 
@@ -92,7 +98,7 @@ export function BibleVerseReader({
     setChapterError(null);
 
     try {
-      setChapterVerses(await fetchChapterVerses(verseInfo));
+      setChapterVerses(await fetchChapterVerses(verseInfo, bibleTranslation));
     } catch (err) {
       console.error("Failed to fetch full chapter:", err);
       setChapterError("chapter");
@@ -115,6 +121,10 @@ export function BibleVerseReader({
         return "Hiligaynon";
       case "es":
         return "Español";
+      case "pt":
+        return "Português";
+      case "fr":
+        return "Français";
       case "la":
         return "Latina";
       case "el":
@@ -170,7 +180,7 @@ export function BibleVerseReader({
                 : "bg-slate-100 border-slate-200 text-slate-500"
             )}
           >
-            KJV
+            {getBibleTranslationAbbreviation(bibleTranslation)}
           </span>
         </div>
       </div>

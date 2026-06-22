@@ -1395,6 +1395,38 @@ Wala nako makit-an ang pat-od nga tubag para sa imo pamangkot nga **"${query}"**
 *(Pahanduraw sa Koneksyon: Kon makatumpak na liwat sa internet ang imo aparato, pangitaon ko ang bug-os nga Kasulatan agod masabat ang imo komplikado nga mga pamangkot.)*`;
   }
 
+  if (lang === "pt") {
+    return `## Daily Healing Word — Companheiro de Estudo Offline
+
+Você está **offline** e lendo do nosso banco de dados local das Escrituras.
+
+Não encontrei uma resposta específica para **"${query}"** nos nossos guias preparados. No entanto, aqui estão orientações fundamentais para continuar seu estudo offline:
+
+### Livros bíblicos recomendados por tema:
+* **Para orientação e conforto**: Os **Salmos** oferecem orações ricas sobre esperança, ansiedade e aflição.
+* **Para sabedoria diária**: Leia o livro de **Provérbios**.
+* **Para os ensinos de Jesus**: Consulte o Evangelho de **João** ou **Mateus** (especialmente capítulos 5–7).
+* **Para a fé em dias difíceis**: Leia **Hebreus** ou **Romanos**.
+
+*(Dica: Quando seu dispositivo se conectar novamente à internet, consultarei toda a Escritura para responder perguntas históricas ou teológicas mais detalhadas.)*`;
+  }
+
+  if (lang === "fr") {
+    return `## Daily Healing Word — Compagnon d'étude hors ligne
+
+Vous êtes actuellement **hors ligne** et consultez notre base locale des Écritures.
+
+Je n'ai pas trouvé de réponse précise à **"${query}"** dans nos guides préparés. Voici toutefois des pistes fondamentales pour poursuivre votre recherche hors ligne :
+
+### Livres bibliques recommandés par sujet :
+* **Pour la guidance et le réconfort** : Les **Psaumes** offrent de riches prières sur l'espérance, l'anxiété et la détresse.
+* **Pour la sagesse quotidienne** : Lisez le livre des **Proverbes**.
+* **Pour les enseignements de Jésus** : Consultez l'Évangile selon **Jean** ou **Matthieu** (surtout les chapitres 5 à 7).
+* **Pour la foi dans l'épreuve** : Lisez les **Hébreux** ou **Romains**.
+
+*(Astuce : Une fois reconnecté à internet, je consulterai toute l'Écriture pour répondre à vos questions historiques ou théologiques plus approfondies.)*`;
+  }
+
   // Generic fallback if we can't find direct answers
   return `## Daily Healing Word Offline Study Companion
 

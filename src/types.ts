@@ -1,6 +1,6 @@
 import type { Message } from "./services/geminiService";
 
-export type LangType = "en" | "fil" | "ceb" | "bik" | "ilo" | "hil" | "es" | "la" | "el";
+export type LangType = "en" | "fil" | "ceb" | "bik" | "ilo" | "hil" | "es" | "la" | "el" | "pt" | "fr";
 
 export interface ChatSession {
   id: string;

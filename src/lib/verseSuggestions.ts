@@ -1,4 +1,8 @@
 import { detectBibleVerse, fetchVerseText } from "./bibleVerse";
+import {
+  DEFAULT_BIBLE_TRANSLATION,
+  type BibleTranslationId,
+} from "./bibleTranslations";
 import { VERSE_SUGGESTION_REFERENCES } from "./dailyVerse";
 
 export interface VerseSuggestion {
@@ -28,6 +32,7 @@ export function pickRandomVerseReferences(
 
 export async function loadVerseSuggestions(
   references: string[],
+  translation: BibleTranslationId = DEFAULT_BIBLE_TRANSLATION,
 ): Promise<VerseSuggestion[]> {
   return Promise.all(
     references.map(async (reference) => {
@@ -36,7 +41,7 @@ export async function loadVerseSuggestions(
 
       if (info) {
         try {
-          text = await fetchVerseText(info);
+          text = await fetchVerseText(info, translation);
         } catch {
           text = "";
         }

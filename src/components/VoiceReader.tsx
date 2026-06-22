@@ -75,6 +75,12 @@ export function VoiceReader({ text, language, theme }: VoiceReaderProps) {
     let preferenceCodes: string[] = [];
     if (language === "fil" || language === "ceb" || language === "bik" || language === "ilo" || language === "hil") {
       preferenceCodes = ["fil-ph", "tl-ph", "tl", "en-us", "en"];
+    } else if (language === "pt") {
+      preferenceCodes = ["pt-br", "pt-pt", "pt", "en-us", "en"];
+    } else if (language === "fr") {
+      preferenceCodes = ["fr-fr", "fr-ca", "fr", "en-us", "en"];
+    } else if (language === "es") {
+      preferenceCodes = ["es-es", "es-mx", "es", "en-us", "en"];
     } else {
       preferenceCodes = ["en-us", "en-gb", "en"];
     }
@@ -187,6 +193,8 @@ export function VoiceReader({ text, language, theme }: VoiceReaderProps) {
       bik: "Basahon nin makusog",
       ilo: "Basaen ti napigsa",
       hil: "Basaha sing mabaskog",
+      pt: "Ler em voz alta",
+      fr: "Lire à voix haute",
     },
     voicePicker: {
       en: "Choose Voice",
@@ -195,6 +203,8 @@ export function VoiceReader({ text, language, theme }: VoiceReaderProps) {
       bik: "Pumili kan Tingog",
       ilo: "Pilien ti Timpuyog",
       hil: "Pilia ang Tingog",
+      pt: "Escolher voz",
+      fr: "Choisir la voix",
     },
     speed: {
       en: "Speed",
@@ -203,6 +213,8 @@ export function VoiceReader({ text, language, theme }: VoiceReaderProps) {
       bik: "Kabilisan",
       ilo: "Kapartas",
       hil: "Kadasigon",
+      pt: "Velocidade",
+      fr: "Vitesse",
     }
   };
 

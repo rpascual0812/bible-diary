@@ -1,3 +1,8 @@
+import {
+  DEFAULT_BIBLE_TRANSLATION,
+  type BibleTranslationId,
+} from "./bibleTranslations";
+
 export interface BibleVerseInfo {
   book: string;
   chapter: number;
@@ -147,11 +152,14 @@ export function getBibleApiBase(): string {
   return "https://bible-api.com";
 }
 
-export async function fetchVerseText(info: BibleVerseInfo): Promise<string> {
+export async function fetchVerseText(
+  info: BibleVerseInfo,
+  translation: BibleTranslationId = DEFAULT_BIBLE_TRANSLATION,
+): Promise<string> {
   const searchBook = cleanAndMapBook(info.book);
   const range = info.endVerse ? `-${info.endVerse}` : "";
   const response = await fetch(
-    `${getBibleApiBase()}/${encodeURIComponent(searchBook)}+${info.chapter}:${info.startVerse}${range}?translation=kjv`
+    `${getBibleApiBase()}/${encodeURIComponent(searchBook)}+${info.chapter}:${info.startVerse}${range}?translation=${encodeURIComponent(translation)}`
   );
   if (!response.ok) {
     throw new Error("Bible text not found");
@@ -168,10 +176,13 @@ export interface ChapterVerse {
   text: string;
 }
 
-export async function fetchChapterVerses(info: BibleVerseInfo): Promise<ChapterVerse[]> {
+export async function fetchChapterVerses(
+  info: BibleVerseInfo,
+  translation: BibleTranslationId = DEFAULT_BIBLE_TRANSLATION,
+): Promise<ChapterVerse[]> {
   const searchBook = cleanAndMapBook(info.book);
   const response = await fetch(
-    `${getBibleApiBase()}/${encodeURIComponent(searchBook)}+${info.chapter}?translation=kjv`
+    `${getBibleApiBase()}/${encodeURIComponent(searchBook)}+${info.chapter}?translation=${encodeURIComponent(translation)}`
   );
   if (!response.ok) {
     throw new Error("Chapter not found");

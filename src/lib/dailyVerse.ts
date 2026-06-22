@@ -1,9 +1,14 @@
 import { detectBibleVerse, fetchVerseText } from "./bibleVerse";
+import {
+  DEFAULT_BIBLE_TRANSLATION,
+  type BibleTranslationId,
+} from "./bibleTranslations";
 
 export interface DailyVerse {
   date: string;
   reference: string;
   text: string;
+  translation?: BibleTranslationId;
 }
 
 export interface DailyVerseStorage {
@@ -150,13 +155,19 @@ export function getReferenceForDate(dateKey: string): string {
 async function readCachedVerse(
   storage: DailyVerseStorage,
   dateKey: string,
+  translation: BibleTranslationId,
 ): Promise<DailyVerse | null> {
   const raw = await storage.getItem(CACHE_KEY);
   if (!raw) return null;
 
   try {
     const parsed = JSON.parse(raw) as DailyVerse;
-    if (parsed.date === dateKey && parsed.reference && parsed.text) {
+    if (
+      parsed.date === dateKey &&
+      parsed.reference &&
+      parsed.text &&
+      (parsed.translation ?? DEFAULT_BIBLE_TRANSLATION) === translation
+    ) {
       return parsed;
     }
   } catch {
@@ -176,9 +187,10 @@ async function writeCachedVerse(
 export async function loadDailyVerse(
   storage: DailyVerseStorage,
   date = new Date(),
+  translation: BibleTranslationId = DEFAULT_BIBLE_TRANSLATION,
 ): Promise<DailyVerse> {
   const dateKey = getTodayDateKey(date);
-  const cached = await readCachedVerse(storage, dateKey);
+  const cached = await readCachedVerse(storage, dateKey, translation);
   if (cached) return cached;
 
   const reference = getReferenceForDate(dateKey);
@@ -187,13 +199,13 @@ export async function loadDailyVerse(
 
   if (info) {
     try {
-      text = await fetchVerseText(info);
+      text = await fetchVerseText(info, translation);
     } catch {
       text = "";
     }
   }
 
-  const verse: DailyVerse = { date: dateKey, reference, text };
+  const verse: DailyVerse = { date: dateKey, reference, text, translation };
   if (text) {
     await writeCachedVerse(storage, verse);
   }

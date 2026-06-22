@@ -57,10 +57,15 @@ import {
 } from "../src/lib/chatNavigation";
 import { LanguageDropdown } from "../src/native/LanguageDropdown";
 import { ThemeDropdown } from "../src/native/ThemeDropdown";
+import { BibleTranslationDropdown } from "../src/native/BibleTranslationDropdown";
 import { DonationModal } from "../src/native/DonationModal";
 import { NativeBibleVerseReader } from "../src/native/BibleVerseReader";
 import { detectBibleVerse } from "../src/lib/bibleVerse";
 import { mergeImportedSessions } from "../src/lib/conversationBackup";
+import {
+  normalizeBibleTranslation,
+  type BibleTranslationId,
+} from "../src/lib/bibleTranslations";
 import {
   getNativeThemeColors,
   isDarkTheme,
@@ -95,6 +100,10 @@ export default function NativeApp() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const [themeDropdownOpen, setThemeDropdownOpen] = useState(false);
+  const [bibleTranslationDropdownOpen, setBibleTranslationDropdownOpen] =
+    useState(false);
+  const [bibleTranslation, setBibleTranslation] =
+    useState<BibleTranslationId>("kjv");
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
   const [renameSessionId, setRenameSessionId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -144,10 +153,11 @@ export default function NativeApp() {
     async function hydrate() {
       await migrateLegacyNativeStorage(getItem, setItem);
 
-      const [savedLang, savedTheme, savedSessions, savedActiveId] =
+      const [savedLang, savedTheme, savedBibleTranslation, savedSessions, savedActiveId] =
         await Promise.all([
           readNativeStorageItem(getItem, "language"),
           readNativeStorageItem(getItem, "theme"),
+          readNativeStorageItem(getItem, "bibleTranslation"),
           readNativeStorageItem(getItem, "sessions"),
           readNativeStorageItem(getItem, "activeId"),
         ]);
@@ -156,6 +166,7 @@ export default function NativeApp() {
 
       if (savedLang) setLanguage(savedLang as LangType);
       if (savedTheme) setTheme(normalizeTheme(savedTheme));
+      setBibleTranslation(normalizeBibleTranslation(savedBibleTranslation));
 
       if (savedSessions) {
         try {
@@ -193,7 +204,7 @@ export default function NativeApp() {
     setVerseSuggestionsLoading(true);
     const references = pickRandomVerseReferences(SUGGESTION_COUNT, exclude);
     try {
-      const loaded = await loadVerseSuggestions(references);
+      const loaded = await loadVerseSuggestions(references, bibleTranslation);
       setVerseSuggestions(loaded);
     } catch {
       setVerseSuggestions(
@@ -202,7 +213,7 @@ export default function NativeApp() {
     } finally {
       setVerseSuggestionsLoading(false);
     }
-  }, []);
+  }, [bibleTranslation]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -323,6 +334,11 @@ export default function NativeApp() {
   const changeTheme = async (next: ThemeId) => {
     setTheme(next);
     await setItem(STORAGE_KEYS.theme, next);
+  };
+
+  const changeBibleTranslation = async (next: BibleTranslationId) => {
+    setBibleTranslation(next);
+    await setItem(STORAGE_KEYS.bibleTranslation, next);
   };
 
   const goHome = useCallback(() => {
@@ -696,6 +712,7 @@ export default function NativeApp() {
         language={language}
         isOnline={isOnline}
         cloudQuotaExceeded={cloudQuotaExceeded}
+        bibleTranslation={bibleTranslation}
         activeSession={activeSession}
         messages={messages}
         verseSuggestions={verseSuggestions}
@@ -710,16 +727,19 @@ export default function NativeApp() {
         sidebarOpen={sidebarOpen}
         langDropdownOpen={langDropdownOpen}
         themeDropdownOpen={themeDropdownOpen}
+        bibleTranslationDropdownOpen={bibleTranslationDropdownOpen}
         sessions={sessions}
         activeSessionId={activeSessionId}
         listRef={listRef}
         handleSend={handleSend}
         handleLanguageChange={handleLanguageChange}
         changeTheme={changeTheme}
+        changeBibleTranslation={changeBibleTranslation}
         setSidebarOpen={setSidebarOpen}
         closeSidebar={closeSidebar}
         setLangDropdownOpen={setLangDropdownOpen}
         setThemeDropdownOpen={setThemeDropdownOpen}
+        setBibleTranslationDropdownOpen={setBibleTranslationDropdownOpen}
         handleCreateSession={handleCreateSession}
         handleSelectSession={handleSelectSession}
         openDeleteConfirm={openDeleteConfirm}
@@ -746,6 +766,7 @@ interface NativeAppContentProps {
   colors: ReturnType<typeof getNativeThemeColors>;
   isDark: boolean;
   language: LangType;
+  bibleTranslation: BibleTranslationId;
   isOnline: boolean;
   cloudQuotaExceeded: boolean;
   activeSession: ChatSession | null;
@@ -762,16 +783,19 @@ interface NativeAppContentProps {
   sidebarOpen: boolean;
   langDropdownOpen: boolean;
   themeDropdownOpen: boolean;
+  bibleTranslationDropdownOpen: boolean;
   sessions: ChatSession[];
   activeSessionId: string | null;
   listRef: React.RefObject<FlatList<Message> | null>;
   handleSend: (customText?: string) => Promise<void>;
   handleLanguageChange: (lang: LangType) => Promise<void>;
   changeTheme: (theme: ThemeId) => Promise<void>;
+  changeBibleTranslation: (translation: BibleTranslationId) => Promise<void>;
   setSidebarOpen: (open: boolean) => void;
   closeSidebar: () => void;
   setLangDropdownOpen: (open: boolean) => void;
   setThemeDropdownOpen: (open: boolean) => void;
+  setBibleTranslationDropdownOpen: (open: boolean) => void;
   handleCreateSession: () => Promise<void>;
   handleSelectSession: (id: string) => Promise<void>;
   openDeleteConfirm: (id: string) => void;
@@ -795,6 +819,7 @@ function NativeAppContent({
   colors,
   isDark,
   language,
+  bibleTranslation,
   isOnline,
   cloudQuotaExceeded,
   activeSession,
@@ -811,16 +836,19 @@ function NativeAppContent({
   sidebarOpen,
   langDropdownOpen,
   themeDropdownOpen,
+  bibleTranslationDropdownOpen,
   sessions,
   activeSessionId,
   listRef,
   handleSend,
   handleLanguageChange,
   changeTheme,
+  changeBibleTranslation,
   setSidebarOpen,
   closeSidebar,
   setLangDropdownOpen,
   setThemeDropdownOpen,
+  setBibleTranslationDropdownOpen,
   handleCreateSession,
   handleSelectSession,
   openDeleteConfirm,
@@ -1136,6 +1164,7 @@ function NativeAppContent({
                         query={item.text}
                         onNavigate={(verse) => handleSend(verse)}
                         language={language}
+                        bibleTranslation={bibleTranslation}
                         colors={colors}
                         isDark={isDark}
                       />
@@ -1253,6 +1282,26 @@ function NativeAppContent({
                 language={language}
                 menuOpen={sidebarOpen}
                 onOpenChange={setThemeDropdownOpen}
+                colors={colors}
+              />
+            </View>
+
+            <View
+              style={[
+                styles.sidebarSection,
+                { borderBottomColor: colors.border },
+              ]}
+            >
+              <Text
+                style={[styles.sidebarSectionLabel, { color: colors.muted }]}
+              >
+                {t("bibleVersionLabel", language)}
+              </Text>
+              <BibleTranslationDropdown
+                value={bibleTranslation}
+                onChange={changeBibleTranslation}
+                menuOpen={sidebarOpen}
+                onOpenChange={setBibleTranslationDropdownOpen}
                 colors={colors}
               />
             </View>

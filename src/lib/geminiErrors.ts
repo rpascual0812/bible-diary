@@ -82,6 +82,8 @@ const QUOTA_MESSAGES: Record<LangType, string> = {
   ilo: "## Naabot ti limit ti Cloud AI\n\nNaaboten ti Gemini API key mo ti rate wenno daily quota. Agurayka kaniam ket padasem manen, wenno kitaem ti usage iti Google AI Studio.",
   hil: "## Naabot na ang limit sang Cloud AI\n\nNaabot na sang imo Gemini API key ang rate ukon daily quota. Hulata gid sang makadali kag tilaw liwat, ukon tan-awa ang usage sa Google AI Studio.",
   es: "## Límite de Cloud AI alcanzado\n\nTu clave de Gemini alcanzó el límite de uso o cuota diaria. Espera un momento e inténtalo de nuevo, o revisa el uso en Google AI Studio.",
+  pt: "## Limite de IA na nuvem atingido\n\nSua chave Gemini atingiu o limite de taxa ou a cota diária. Aguarde um pouco e tente novamente, ou verifique o uso no Google AI Studio.",
+  fr: "## Limite d'IA cloud atteinte\n\nVotre clé Gemini a atteint la limite de débit ou le quota quotidien. Attendez un moment et réessayez, ou consultez l'utilisation dans Google AI Studio.",
   la: "## Finis limitis Cloud AI\n\nClavis Gemini tuae limitem velocitatis vel quota diurna attigit. Expecta paulisper et iterum conare.",
   el: "## Έφτασε το όριο Cloud AI\n\nΤο κλειδί Gemini έφτασε το όριο ρυθμού ή την ημερήσια ποσόστωση. Περιμένετε λίγο και δοκιμάστε ξανά.",
 };

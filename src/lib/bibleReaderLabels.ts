@@ -19,6 +19,8 @@ export function getBibleReaderLabels(lang: LangType, verseRef: string) {
         es: "Pasaje bíblico",
         la: "Locus Scripturae",
         el: "Βιβλικό απόσπασμα",
+        pt: "Passagem bíblica",
+        fr: "Passage biblique",
       },
       lang
     ),
@@ -33,6 +35,8 @@ export function getBibleReaderLabels(lang: LangType, verseRef: string) {
         es: "Capítulo completo",
         la: "Caput plenum",
         el: "Πλήρες κεφάλαιο",
+        pt: "Capítulo completo",
+        fr: "Chapitre complet",
       },
       lang
     ),
@@ -47,6 +51,8 @@ export function getBibleReaderLabels(lang: LangType, verseRef: string) {
         es: "Versículo seleccionado",
         la: "Versus selectus",
         el: "Επιλεγμένο στίχο",
+        pt: "Versículo selecionado",
+        fr: "Verset sélectionné",
       },
       lang
     ),
@@ -61,6 +67,8 @@ export function getBibleReaderLabels(lang: LangType, verseRef: string) {
         es: "Texto del capítulo",
         la: "Textus capitis",
         el: "Κείμενο κεφαλαίου",
+        pt: "Texto do capítulo",
+        fr: "Texte du chapitre",
       },
       lang
     ),
@@ -75,6 +83,8 @@ export function getBibleReaderLabels(lang: LangType, verseRef: string) {
         es: "Capítulo anterior",
         la: "Caput prius",
         el: "Προηγούμενο κεφάλαιο",
+        pt: "Capítulo anterior",
+        fr: "Chapitre précédent",
       },
       lang
     ),
@@ -89,6 +99,8 @@ export function getBibleReaderLabels(lang: LangType, verseRef: string) {
         es: "Siguiente capítulo",
         la: "Caput sequens",
         el: "Επόμενο κεφάλαιο",
+        pt: "Próximo capítulo",
+        fr: "Chapitre suivant",
       },
       lang
     ),
@@ -103,6 +115,8 @@ export function getBibleReaderLabels(lang: LangType, verseRef: string) {
         es: "Abriendo la Escritura...",
         la: "Scriptura aperitur...",
         el: "Άνοιγμα της Γραφής...",
+        pt: "Abrindo as Escrituras...",
+        fr: "Ouverture des Écritures...",
       },
       lang
     ),
@@ -117,6 +131,8 @@ export function getBibleReaderLabels(lang: LangType, verseRef: string) {
         es: "Cargando versículos...",
         la: "Versus capitis accipiuntur...",
         el: "Φόρτωση στίχων...",
+        pt: "Carregando versículos...",
+        fr: "Chargement des versets...",
       },
       lang
     ),
@@ -131,6 +147,8 @@ export function getBibleReaderLabels(lang: LangType, verseRef: string) {
         es: "No se pudo obtener el pasaje. Prueba otra referencia.",
         la: "Locus non potuit accipi. Aliam referentiam tenta.",
         el: "Δεν ήταν δυνατή η ανάκτηση του αποσπάσματος.",
+        pt: "Não foi possível obter esta passagem. Tente outra referência.",
+        fr: "Impossible d'obtenir ce passage. Essayez une autre référence.",
       },
       lang
     ),
@@ -145,6 +163,8 @@ export function getBibleReaderLabels(lang: LangType, verseRef: string) {
         es: "No se pudo cargar el capítulo completo.",
         la: "Caput plenum non potuit accipi.",
         el: "Δεν ήταν δυνατή η φόρτωση του κεφαλαίου.",
+        pt: "Não foi possível carregar o capítulo completo. Tente novamente.",
+        fr: "Impossible de charger le chapitre complet. Veuillez réessayer.",
       },
       lang
     ),
@@ -159,6 +179,8 @@ export function getBibleReaderLabels(lang: LangType, verseRef: string) {
         es: `¿Puedes explicar ${verseRef} en detalle?`,
         la: `Explica ${verseRef} in contextu, quaeso.`,
         el: `Μπορείς να εξηγήσεις το ${verseRef} λεπτομερώς;`,
+        pt: `Você pode explicar ${verseRef} em detalhes?`,
+        fr: `Pouvez-vous expliquer ${verseRef} en détail ?`,
       },
       lang
     ),
@@ -173,6 +195,8 @@ export function getBibleReaderLabels(lang: LangType, verseRef: string) {
         es: "Explicar en contexto",
         la: "Explica in contextu",
         el: "Εξήγηση στο πλαίσιο",
+        pt: "Explicar em contexto",
+        fr: "Expliquer en contexte",
       },
       lang
     ),
