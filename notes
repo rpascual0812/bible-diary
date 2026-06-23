@@ -95,3 +95,5 @@ FIX (recommended):
 OR if Play app is still com.rpascual.studio.biblediary, upload the Jun 16 AAB link above directly.
 
 OR Play Console → App signing → Request upload key reset (if no production release yet), then use the new keystore.
+
+# generate App bundles to be uploaded to google play console. Increment version code

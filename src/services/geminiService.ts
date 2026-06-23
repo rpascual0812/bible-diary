@@ -5,6 +5,10 @@ import {
   GeminiQuotaError,
 } from "../lib/geminiErrors";
 import type { LangType } from "../types";
+import {
+  FOLLOW_UP_SYSTEM_APPENDIX,
+  type FollowUpSuggestion,
+} from "../lib/followUpSuggestions";
 
 const SYSTEM_INSTRUCTION_EN = `You are Daily Healing Word, a highly specialized conversational assistant focused exclusively on the Bible. 
 Your knowledge is strictly limited to the Old and New Testaments. 
@@ -98,6 +102,7 @@ export interface Message {
   role: "user" | "model";
   text: string;
   timestamp: number;
+  followUps?: FollowUpSuggestion[];
 }
 
 export class GeminiService {
@@ -140,7 +145,7 @@ export class GeminiService {
     this.chat = this.ai.chats.create({
       model: "gemini-3-flash-preview",
       config: {
-        systemInstruction,
+        systemInstruction: systemInstruction + FOLLOW_UP_SYSTEM_APPENDIX,
         temperature: 0.7,
       },
     });

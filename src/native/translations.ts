@@ -500,6 +500,17 @@ const strings = {
     la: "Plura sugger",
     el: "Περισσότερες προτάσεις",
   },
+  continueStudy: {
+    en: "Continue your study",
+    fil: "Ipagpatuloy ang pag-aaral",
+    ceb: "Padayona ang pagtuon",
+    bik: "Ipadagos an pag-adal",
+    ilo: "Ituloy ti panag-adal",
+    hil: "Padayuna ang pagtuon",
+    es: "Continúa tu estudio",
+    la: "Perge in studio",
+    el: "Συνεχίστε τη μελέτη",
+  },
   nativeModuleUnavailable: {
     en: "Import and export need an updated app build. Rebuild with EAS or run expo run:android / expo run:ios, then reinstall the app.",
     fil: "Kailangan ng bagong build ang import/export. I-rebuild ang app gamit ang EAS o expo run:android / expo run:ios, tapos i-install muli.",

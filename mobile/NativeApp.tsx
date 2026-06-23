@@ -51,6 +51,7 @@ import {
   SUGGESTION_COUNT,
   type VerseSuggestion,
 } from "../src/lib/verseSuggestions";
+import { processModelResponse } from "../src/lib/followUpSuggestions";
 import {
   handleChatBackPress,
   pickFallbackSessionId,
@@ -121,6 +122,7 @@ export default function NativeApp() {
 
   const geminiRef = useRef<GeminiService | null>(null);
   const listRef = useRef<FlatList<Message>>(null);
+  const pendingScrollAnchorRef = useRef<number | null>(null);
   const sessionsRef = useRef(sessions);
   const languageRef = useRef(language);
   const translatingSessionRef = useRef<string | null>(null);
@@ -135,6 +137,37 @@ export default function NativeApp() {
     [sessions, activeSessionId],
   );
   const messages = activeSession?.messages ?? [];
+
+  const scrollToMessageIndex = useCallback((index: number) => {
+    if (index < 0) return;
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToIndex({
+        index,
+        viewPosition: 0,
+        animated: true,
+      });
+    });
+  }, []);
+
+  const scrollToMessageAnchor = useCallback(
+    (timestamp: number) => {
+      const index = messages.findIndex((msg) => msg.timestamp === timestamp);
+      scrollToMessageIndex(index);
+    },
+    [messages, scrollToMessageIndex],
+  );
+
+  const scrollToLastUserMessage = useCallback(() => {
+    const lastUserIndex = messages.findLastIndex((msg) => msg.role === "user");
+    scrollToMessageIndex(lastUserIndex);
+  }, [messages, scrollToMessageIndex]);
+
+  const handleScrollToIndexFailed = useCallback(
+    (info: { index: number }) => {
+      setTimeout(() => scrollToMessageIndex(info.index), 100);
+    },
+    [scrollToMessageIndex],
+  );
 
   const saveSessions = useCallback(
     async (updated: ChatSession[], activeId = activeSessionId) => {
@@ -237,18 +270,36 @@ export default function NativeApp() {
   }, [language, hydrated]);
 
   useEffect(() => {
-    if (messages.length === 0) return;
-    listRef.current?.scrollToEnd({ animated: true });
-  }, [messages, isLoading]);
+    const anchorTs = pendingScrollAnchorRef.current;
+    if (!anchorTs || messages.length === 0) return;
+
+    const anchorIndex = messages.findIndex((msg) => msg.timestamp === anchorTs);
+    if (anchorIndex === -1) return;
+
+    const hasResponse =
+      messages.length > anchorIndex + 1 &&
+      messages[anchorIndex + 1].role === "model" &&
+      !isLoading;
+
+    if (hasResponse) {
+      scrollToMessageAnchor(anchorTs);
+      pendingScrollAnchorRef.current = null;
+      return;
+    }
+
+    if (isLoading && messages[anchorIndex]?.role === "user") {
+      scrollToMessageAnchor(anchorTs);
+    }
+  }, [messages, isLoading, scrollToMessageAnchor]);
 
   useEffect(() => {
     const event =
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
     const subscription = Keyboard.addListener(event, () => {
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
+      setTimeout(() => scrollToLastUserMessage(), 50);
     });
     return () => subscription.remove();
-  }, []);
+  }, [scrollToLastUserMessage]);
 
   const handleLanguageChange = async (lang: LangType) => {
     if (lang === language) return;
@@ -609,6 +660,7 @@ export default function NativeApp() {
       text: textToSend,
       timestamp: Date.now(),
     };
+    pendingScrollAnchorRef.current = userMsg.timestamp;
 
     const withUser = sessionList.map((session) => {
       if (session.id !== sessionId) return session;
@@ -637,10 +689,17 @@ export default function NativeApp() {
         aiText = `## Local Study Mode\n\nYou are online, but cloud AI is not configured (missing Gemini API key). Using the offline Bible study database.\n\n${getOfflineAnswer(textToSend, language)}`;
       }
 
+      const { text: displayText, followUps } = processModelResponse(
+        aiText,
+        textToSend,
+        language,
+      );
+
       const aiMsg: Message = {
         role: "model",
-        text: aiText,
+        text: displayText,
         timestamp: Date.now(),
+        followUps,
       };
 
       const withAi = withUser.map((session) =>
@@ -658,14 +717,21 @@ export default function NativeApp() {
       if (isGeminiQuotaError(error)) {
         setCloudQuotaExceeded(true);
       }
+      const fallbackText = resolveGeminiChatErrorMessage(
+        error,
+        language,
+        getOfflineAnswer(textToSend, language),
+      );
+      const { text: displayFallbackText, followUps } = processModelResponse(
+        fallbackText,
+        textToSend,
+        language,
+      );
       const fallback: Message = {
         role: "model",
-        text: resolveGeminiChatErrorMessage(
-          error,
-          language,
-          getOfflineAnswer(textToSend, language),
-        ),
+        text: displayFallbackText,
         timestamp: Date.now(),
+        followUps,
       };
       const withFallback = withUser.map((session) =>
         session.id === sessionId
@@ -741,6 +807,8 @@ export default function NativeApp() {
         sessions={sessions}
         activeSessionId={activeSessionId}
         listRef={listRef}
+        onScrollToIndexFailed={handleScrollToIndexFailed}
+        onComposerFocus={scrollToLastUserMessage}
         handleSend={handleSend}
         handleLanguageChange={handleLanguageChange}
         changeTheme={changeTheme}
@@ -797,6 +865,8 @@ interface NativeAppContentProps {
   sessions: ChatSession[];
   activeSessionId: string | null;
   listRef: React.RefObject<FlatList<Message> | null>;
+  onScrollToIndexFailed: (info: { index: number }) => void;
+  onComposerFocus: () => void;
   handleSend: (customText?: string) => Promise<void>;
   handleLanguageChange: (lang: LangType) => Promise<void>;
   changeTheme: (theme: ThemeId) => Promise<void>;
@@ -850,6 +920,8 @@ function NativeAppContent({
   sessions,
   activeSessionId,
   listRef,
+  onScrollToIndexFailed,
+  onComposerFocus,
   handleSend,
   handleLanguageChange,
   changeTheme,
@@ -1102,6 +1174,7 @@ function NativeAppContent({
             onMomentumScrollEnd={handleScrollEnd}
             onScroll={handleMessagesScroll}
             scrollEventThrottle={16}
+            onScrollToIndexFailed={onScrollToIndexFailed}
             ListEmptyComponent={null}
             ListFooterComponent={
               isTranslating || isLoading ? (
@@ -1161,9 +1234,52 @@ function NativeAppContent({
                   {formatTime(item.timestamp)}
                 </Text>
                 {item.role === "model" ? (
-                  <Markdown style={markdownStyles(isDark)}>
-                    {item.text}
-                  </Markdown>
+                  <>
+                    <Markdown style={markdownStyles(isDark)}>
+                      {item.text}
+                    </Markdown>
+                    {item.followUps && item.followUps.length > 0 && (
+                      <View style={styles.followUpSection}>
+                        <Text
+                          style={[styles.followUpLabel, { color: colors.accent }]}
+                        >
+                          {t("continueStudy", language)}
+                        </Text>
+                        <View style={styles.followUpChips}>
+                          {item.followUps.map((followUp, chipIndex) => {
+                            const actionText =
+                              followUp.type === "verse" && followUp.reference
+                                ? followUp.reference
+                                : followUp.text;
+                            return (
+                              <Pressable
+                                key={`${followUp.type}-${chipIndex}`}
+                                onPress={() => handleSend(actionText)}
+                                style={[
+                                  styles.followUpChip,
+                                  {
+                                    borderColor: colors.border,
+                                    backgroundColor: isDark
+                                      ? "#1f2937"
+                                      : "#f8fafc",
+                                  },
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.followUpChipText,
+                                    { color: colors.text },
+                                  ]}
+                                >
+                                  {followUp.text}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    )}
+                  </>
                 ) : (
                   <>
                     <Text style={[styles.messageText, { color: colors.text }]}>
@@ -1201,10 +1317,7 @@ function NativeAppContent({
               value={input}
               onChangeText={setInput}
               onFocus={() => {
-                setTimeout(
-                  () => listRef.current?.scrollToEnd({ animated: true }),
-                  50,
-                );
+                setTimeout(() => onComposerFocus(), 50);
               }}
               placeholder={
                 isOnline
@@ -1748,6 +1861,32 @@ const styles = StyleSheet.create({
   },
   messageMeta: { fontSize: 11, marginBottom: 6 },
   messageText: { fontSize: 15, lineHeight: 22 },
+  followUpSection: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(148, 163, 184, 0.35)",
+  },
+  followUpLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  followUpChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  followUpChip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    maxWidth: "100%",
+  },
+  followUpChipText: { fontSize: 13, lineHeight: 18 },
   loadingRow: {
     flexDirection: "row",
     alignItems: "center",

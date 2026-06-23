@@ -35,6 +35,9 @@ import { LanguageDropdown } from "./components/LanguageDropdown";
 import { ThemeDropdown } from "./components/ThemeDropdown";
 import { BibleTranslationDropdown } from "./components/BibleTranslationDropdown";
 import { BibleVerseReader } from "./components/BibleVerseReader";
+import { FollowUpChips } from "./components/FollowUpChips";
+import { processModelResponse } from "./lib/followUpSuggestions";
+import { detectBibleVerse } from "./lib/bibleVerse";
 import {
   getRootClassName,
   getSplashClassName,
@@ -588,6 +591,17 @@ const getUiTranslation = (key: string, lang: LangType) => {
       la: "Plura sugger",
       el: "Περισσότερες προτάσεις",
     },
+    continueStudy: {
+      en: "Continue your study",
+      fil: "Ipagpatuloy ang pag-aaral",
+      ceb: "Padayona ang pagtuon",
+      bik: "Ipadagos an pag-adal",
+      ilo: "Ituloy ti panag-adal",
+      hil: "Padayuna ang pagtuon",
+      es: "Continúa tu estudio",
+      la: "Perge in studio",
+      el: "Συνεχίστε τη μελέτη",
+    },
     offlineSummaryTitle: {
       en: "Offline Capabilities Built-In",
       fil: "May Built-In Na Offline Na Kakanyahan",
@@ -902,6 +916,8 @@ export default function App() {
   }, []);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef(new Map<number, HTMLDivElement>());
+  const pendingScrollAnchorRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
   const sessionsRef = useRef(sessions);
@@ -921,6 +937,18 @@ export default function App() {
   const geminiRef = useRef<GeminiService | null>(null);
 
   const SCROLL_DOWN_THRESHOLD = 24;
+
+  const scrollToMessageAnchor = useCallback(
+    (timestamp: number, behavior: ScrollBehavior = "smooth") => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const el = messageRefs.current.get(timestamp);
+          el?.scrollIntoView({ block: "start", behavior });
+        });
+      });
+    },
+    [],
+  );
 
   const handleScrollInteractionStart = useCallback(() => {
     const container = scrollRef.current;
@@ -987,9 +1015,16 @@ export default function App() {
     void refreshVerseSuggestions();
   }, [refreshVerseSuggestions]);
 
-  // Scroll to bottom on new messages
+  // Chat messages for the active session
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const messages = activeSession ? activeSession.messages : [];
+
+  const scrollToLastUserMessage = useCallback(() => {
+    const lastUser = [...messages].reverse().find((msg) => msg.role === "user");
+    if (lastUser) {
+      scrollToMessageAnchor(lastUser.timestamp);
+    }
+  }, [messages, scrollToMessageAnchor]);
 
   const goHome = useCallback(() => {
     setShowHomeScreen(true);
@@ -1148,10 +1183,27 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const anchorTs = pendingScrollAnchorRef.current;
+    if (!anchorTs || messages.length === 0) return;
+
+    const anchorIndex = messages.findIndex((msg) => msg.timestamp === anchorTs);
+    if (anchorIndex === -1) return;
+
+    const hasResponse =
+      messages.length > anchorIndex + 1 &&
+      messages[anchorIndex + 1].role === "model" &&
+      !isLoading;
+
+    if (hasResponse) {
+      scrollToMessageAnchor(anchorTs, "auto");
+      pendingScrollAnchorRef.current = null;
+      return;
     }
-  }, [messages, isLoading]);
+
+    if (isLoading && messages[anchorIndex]?.role === "user") {
+      scrollToMessageAnchor(anchorTs);
+    }
+  }, [messages, isLoading, scrollToMessageAnchor]);
 
   // Persists sessions to LocalStorage and IndexedDB
   const saveSessions = (updatedSessions: ChatSession[]) => {
@@ -1423,6 +1475,7 @@ export default function App() {
       text: textToSend,
       timestamp: Date.now(),
     };
+    pendingScrollAnchorRef.current = userMsg.timestamp;
 
     currentSession.messages = [...currentSession.messages, userMsg];
     if (
@@ -1455,10 +1508,17 @@ export default function App() {
         aiText = `## Local Study Mode\n\nYou are online, but cloud AI is not configured (missing Gemini API key). Using the offline Bible study database.\n\n${getOfflineAnswer(textToSend, language)}`;
       }
 
+      const { text: displayText, followUps } = processModelResponse(
+        aiText,
+        textToSend,
+        language,
+      );
+
       const aiMsg: Message = {
         role: "model",
-        text: aiText,
+        text: displayText,
         timestamp: Date.now(),
+        followUps,
       };
 
       // Force refresh on mutated lists
@@ -1484,10 +1544,17 @@ export default function App() {
         getOfflineAnswer(textToSend, language),
       );
 
+      const { text: displayErrorText, followUps } = processModelResponse(
+        errorText,
+        textToSend,
+        language,
+      );
+
       const errMsg: Message = {
         role: "model",
-        text: errorText,
+        text: displayErrorText,
         timestamp: Date.now(),
+        followUps,
       };
 
       const freshList = sList.map((s) => {
@@ -2152,7 +2219,14 @@ export default function App() {
             <div className="space-y-12 max-w-3xl mx-auto">
               {messages.map((msg, i) => (
                 <motion.div
-                  key={i}
+                  key={`${msg.timestamp}-${i}`}
+                  ref={(el) => {
+                    if (el) {
+                      messageRefs.current.set(msg.timestamp, el);
+                    } else {
+                      messageRefs.current.delete(msg.timestamp);
+                    }
+                  }}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
@@ -2250,6 +2324,14 @@ export default function App() {
                         >
                           {msg.text}
                         </ReactMarkdown>
+                        {msg.followUps && msg.followUps.length > 0 && (
+                          <FollowUpChips
+                            followUps={msg.followUps}
+                            theme={theme}
+                            label={getUiTranslation("continueStudy", language)}
+                            onSelect={(text) => handleSend(text)}
+                          />
+                        )}
                       </div>
                     )}
                   </div>
@@ -2347,12 +2429,7 @@ export default function App() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onFocus={() => {
-                  if (scrollRef.current) {
-                    scrollRef.current.scrollTop =
-                      scrollRef.current.scrollHeight;
-                  }
-                }}
+                onFocus={scrollToLastUserMessage}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();

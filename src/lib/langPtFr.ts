@@ -151,6 +151,10 @@ export const LANG_PT_FR: Record<
     pt: "Sugerir mais",
     fr: "Suggérer plus",
   },
+  continueStudy: {
+    pt: "Continue seu estudo",
+    fr: "Poursuivez votre étude",
+  },
   offlineSummaryTitle: {
     pt: "Estudo bíblico offline",
     fr: "Étude biblique hors ligne",
