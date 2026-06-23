@@ -24,7 +24,6 @@ export default defineConfig(({mode}) => {
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || ""),
       'process.env.EXPO_PUBLIC_GEMINI_API_KEY': JSON.stringify(env.EXPO_PUBLIC_GEMINI_API_KEY || env.GEMINI_API_KEY || process.env.EXPO_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || ""),
-      'process.env.PAYMONGO_PUBLIC_KEY': JSON.stringify(env.PAYMONGO_PUBLIC_KEY || process.env.PAYMONGO_PUBLIC_KEY || ""),
       'process.env.VITE_BANK_NAME': JSON.stringify(env.VITE_BANK_NAME || process.env.VITE_BANK_NAME || ""),
       'process.env.VITE_BANK_ACCOUNT_NAME': JSON.stringify(env.VITE_BANK_ACCOUNT_NAME || process.env.VITE_BANK_ACCOUNT_NAME || ""),
       'process.env.VITE_BANK_ACCOUNT_NUMBER': JSON.stringify(env.VITE_BANK_ACCOUNT_NUMBER || process.env.VITE_BANK_ACCOUNT_NUMBER || ""),

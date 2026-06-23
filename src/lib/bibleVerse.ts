@@ -1,7 +1,5 @@
-import {
-  DEFAULT_BIBLE_TRANSLATION,
-  type BibleTranslationId,
-} from "./bibleTranslations";
+import { getCachedBibleTranslation } from "./bibleTranslationStorage";
+import type { BibleTranslationId } from "./bibleTranslations";
 
 export interface BibleVerseInfo {
   book: string;
@@ -154,12 +152,13 @@ export function getBibleApiBase(): string {
 
 export async function fetchVerseText(
   info: BibleVerseInfo,
-  translation: BibleTranslationId = DEFAULT_BIBLE_TRANSLATION,
+  translation?: BibleTranslationId,
 ): Promise<string> {
+  const resolvedTranslation = translation ?? getCachedBibleTranslation();
   const searchBook = cleanAndMapBook(info.book);
   const range = info.endVerse ? `-${info.endVerse}` : "";
   const response = await fetch(
-    `${getBibleApiBase()}/${encodeURIComponent(searchBook)}+${info.chapter}:${info.startVerse}${range}?translation=${encodeURIComponent(translation)}`
+    `${getBibleApiBase()}/${encodeURIComponent(searchBook)}+${info.chapter}:${info.startVerse}${range}?translation=${encodeURIComponent(resolvedTranslation)}`
   );
   if (!response.ok) {
     throw new Error("Bible text not found");
@@ -178,11 +177,12 @@ export interface ChapterVerse {
 
 export async function fetchChapterVerses(
   info: BibleVerseInfo,
-  translation: BibleTranslationId = DEFAULT_BIBLE_TRANSLATION,
+  translation?: BibleTranslationId,
 ): Promise<ChapterVerse[]> {
+  const resolvedTranslation = translation ?? getCachedBibleTranslation();
   const searchBook = cleanAndMapBook(info.book);
   const response = await fetch(
-    `${getBibleApiBase()}/${encodeURIComponent(searchBook)}+${info.chapter}?translation=${encodeURIComponent(translation)}`
+    `${getBibleApiBase()}/${encodeURIComponent(searchBook)}+${info.chapter}?translation=${encodeURIComponent(resolvedTranslation)}`
   );
   if (!response.ok) {
     throw new Error("Chapter not found");

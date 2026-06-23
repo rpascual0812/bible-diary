@@ -3,134 +3,129 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import {
-  BAKED_PAYMONGO_SECRET_KEY,
-  BAKED_PAYMONGO_PUBLIC_KEY,
-  BAKED_PAYMONGO_TEST_SECRET_KEY,
-  BAKED_PAYMONGO_TEST_PUBLIC_KEY,
+  BAKED_XENDIT_SECRET_KEY,
+  BAKED_XENDIT_TEST_SECRET_KEY,
 } from "./src/config/apiKey";
+
+function readSecret(value: string | undefined): string {
+  return value?.trim() ?? "";
+}
+
+function isXenditTestKey(key: string): boolean {
+  return key.startsWith("xnd_development_");
+}
+
+function resolveXenditSecretKey(useSandbox: boolean): string {
+  const liveKey =
+    readSecret(process.env.XENDIT_SECRET_KEY) || BAKED_XENDIT_SECRET_KEY.trim();
+  const testKey =
+    readSecret(process.env.XENDIT_TEST_SECRET_KEY) ||
+    BAKED_XENDIT_TEST_SECRET_KEY.trim();
+
+  if (useSandbox) {
+    if (testKey) return testKey;
+    if (liveKey && isXenditTestKey(liveKey)) return liveKey;
+    return "";
+  }
+
+  if (liveKey && !isXenditTestKey(liveKey)) return liveKey;
+  return liveKey;
+}
+
+function formatPhilippineMobile(phone: string): string | undefined {
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) return undefined;
+  if (digits.startsWith("63")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+63${digits.slice(1)}`;
+  return `+63${digits}`;
+}
+
+function splitContributorName(name: string): {
+  givenNames: string;
+  surname: string;
+} {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return { givenNames: "Anonymous", surname: "Member" };
+  }
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 1) {
+    return { givenNames: parts[0], surname: "Member" };
+  }
+  return {
+    givenNames: parts.slice(0, -1).join(" "),
+    surname: parts[parts.length - 1],
+  };
+}
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Middleware to parse incoming request payloads securely
   app.use(express.json());
 
-  // Show status logs on configuration
-  const initialSecret =
-    (process.env.PAYMONGO_SECRET_KEY &&
-      process.env.PAYMONGO_SECRET_KEY.trim()) ||
-    (typeof BAKED_PAYMONGO_SECRET_KEY !== "undefined"
-      ? BAKED_PAYMONGO_SECRET_KEY.trim()
-      : "");
+  const liveSecret =
+    readSecret(process.env.XENDIT_SECRET_KEY) || BAKED_XENDIT_SECRET_KEY.trim();
   const testSecret =
-    (process.env.PAYMONGO_TEST_SECRET_KEY &&
-      process.env.PAYMONGO_TEST_SECRET_KEY.trim()) ||
-    (typeof BAKED_PAYMONGO_TEST_SECRET_KEY !== "undefined"
-      ? BAKED_PAYMONGO_TEST_SECRET_KEY.trim()
-      : "");
+    readSecret(process.env.XENDIT_TEST_SECRET_KEY) ||
+    BAKED_XENDIT_TEST_SECRET_KEY.trim();
+
   console.log(
-    "PAYMONGO CONFIGURATION CHECK - Live Secret Key Loaded:",
-    initialSecret
-      ? "YES (Starts with " + initialSecret.substring(0, 7) + "...)"
+    "XENDIT CONFIGURATION CHECK - Live Secret Key Loaded:",
+    liveSecret && !isXenditTestKey(liveSecret)
+      ? `YES (Starts with ${liveSecret.substring(0, 16)}...)`
       : "NO",
   );
   console.log(
-    "PAYMONGO CONFIGURATION CHECK - Sandbox Secret Key Loaded:",
-    testSecret
-      ? "YES (Starts with " + testSecret.substring(0, 7) + "...)"
+    "XENDIT CONFIGURATION CHECK - Test Secret Key Loaded:",
+    testSecret || (liveSecret && isXenditTestKey(liveSecret))
+      ? "YES"
       : "NO",
   );
 
-  // Check if system environment is equipped with PayMongo configuration
-  app.get("/api/paymongo/status", (req, res) => {
-    const hasLiveKey =
-      !!process.env.PAYMONGO_SECRET_KEY ||
-      (typeof BAKED_PAYMONGO_SECRET_KEY !== "undefined" &&
-        !!BAKED_PAYMONGO_SECRET_KEY.trim());
-    const hasTestKey =
-      !!process.env.PAYMONGO_TEST_SECRET_KEY ||
-      (typeof BAKED_PAYMONGO_TEST_SECRET_KEY !== "undefined" &&
-        !!BAKED_PAYMONGO_TEST_SECRET_KEY.trim());
-    const pubKey =
-      process.env.PAYMONGO_PUBLIC_KEY ||
-      (typeof BAKED_PAYMONGO_PUBLIC_KEY !== "undefined"
-        ? BAKED_PAYMONGO_PUBLIC_KEY.trim()
-        : null);
-    const testPubKey =
-      process.env.PAYMONGO_TEST_PUBLIC_KEY ||
-      (typeof BAKED_PAYMONGO_TEST_PUBLIC_KEY !== "undefined"
-        ? BAKED_PAYMONGO_TEST_PUBLIC_KEY.trim()
-        : null);
+  app.get("/api/xendit/status", (req, res) => {
+    const hasLiveKey = !!liveSecret && !isXenditTestKey(liveSecret);
+    const hasTestKey = !!testSecret || (liveSecret && isXenditTestKey(liveSecret));
     res.json({
       configured: hasLiveKey || hasTestKey,
       hasLiveKey,
       hasTestKey,
-      publicKey: pubKey || null,
-      testPublicKey: testPubKey || null,
     });
   });
 
-  // Secure Server-to-Server PayMongo Checkout Session creation endpoint
-  app.post("/api/paymongo/create-session", async (req, res) => {
+  app.post("/api/xendit/create-session", async (req, res) => {
     try {
       const { amount, purpose, name, email, phone, isSandbox, isDebug } =
         req.body;
 
-      // Determine if sandbox/test environment should be utilized (default to sandbox if requested by debug APK or client flag)
       const useSandbox =
         isSandbox === true ||
         isDebug === true ||
-        process.env.PAYMONGO_SECRET_KEY?.startsWith("sk_test") ||
-        (typeof BAKED_PAYMONGO_SECRET_KEY === "string" &&
-          BAKED_PAYMONGO_SECRET_KEY.startsWith("sk_test"));
+        isXenditTestKey(liveSecret);
 
-      let secretKey = "";
-      if (useSandbox) {
-        secretKey =
-          (process.env.PAYMONGO_TEST_SECRET_KEY &&
-            process.env.PAYMONGO_TEST_SECRET_KEY.trim()) ||
-          (process.env.PAYMONGO_SECRET_KEY &&
-          process.env.PAYMONGO_SECRET_KEY.startsWith("sk_test")
-            ? process.env.PAYMONGO_SECRET_KEY.trim()
-            : "") ||
-          (typeof BAKED_PAYMONGO_TEST_SECRET_KEY !== "undefined"
-            ? BAKED_PAYMONGO_TEST_SECRET_KEY.trim()
-            : "");
-      } else {
-        secretKey =
-          (process.env.PAYMONGO_SECRET_KEY &&
-            process.env.PAYMONGO_SECRET_KEY.trim()) ||
-          (typeof BAKED_PAYMONGO_SECRET_KEY !== "undefined"
-            ? BAKED_PAYMONGO_SECRET_KEY.trim()
-            : "");
-      }
-
+      const secretKey = resolveXenditSecretKey(useSandbox);
       if (!secretKey) {
         return res.status(400).json({
-          error: "PAYMONGO_SECRET_KEY_MISSING",
+          error: "XENDIT_SECRET_KEY_MISSING",
           message: useSandbox
-            ? "PayMongo sandbox key is not configured. Please define BAKED_PAYMONGO_TEST_SECRET_KEY inside 'apiKey.ts'."
-            : "PayMongo secret key is not configured. Please define BAKED_PAYMONGO_SECRET_KEY inside 'apiKey.ts'.",
+            ? "Xendit test secret key is not configured. Set XENDIT_TEST_SECRET_KEY in your environment."
+            : "Xendit secret key is not configured. Set XENDIT_SECRET_KEY in your environment.",
         });
       }
 
-      // Check amount validity. PayMongo expects amount in Philippine Centavos (e.g., ₱100.00 = 10000 centavos)
       const numericAmount = parseFloat(amount);
       if (isNaN(numericAmount) || numericAmount < 20) {
         return res.status(400).json({
           error: "INVALID_AMOUNT",
-          message:
-            "The minimum offering amount supported by PayMongo is ₱20.00 (PHP).",
+          message: "The minimum offering amount supported is PHP 20.00.",
         });
       }
 
       const amountInCentavos = Math.round(numericAmount * 100);
-      const authHeader = `Basic ${Buffer.from(secretKey + ":").toString("base64")}`; // Key with a trailing colon
+      const authHeader = `Basic ${Buffer.from(`${secretKey}:`).toString("base64")}`;
 
-      // Compute dynamic, robust back-reference URLs matching the client's ingress (resolving referer parsing and proxy issues)
       let baseUrl = "";
-      if (process.env.APP_URL && process.env.APP_URL.trim()) {
+      if (process.env.APP_URL?.trim()) {
         baseUrl = process.env.APP_URL.trim();
         if (!baseUrl.endsWith("/")) {
           baseUrl += "/";
@@ -143,66 +138,79 @@ async function startServer() {
         baseUrl = `${protocol}://${host}/`;
       }
 
-      // Send payment session initiation request to official PayMongo REST API
-      const paymongoApiBase =
-        process.env.PAYMONGO_API_URL || "https://api.paymongo.com";
-      const pmResponse = await fetch(
-        `${paymongoApiBase}/v1/checkout_sessions`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: authHeader,
+      const referenceId = `dhw-${Date.now()}`;
+      const contributor = splitContributorName(name || "");
+      const mobileNumber = phone ? formatPhilippineMobile(phone) : undefined;
+
+      const xenditApiBase =
+        process.env.XENDIT_API_URL?.replace(/\/$/, "") ||
+        "https://api.xendit.co";
+
+      const sessionPayload: Record<string, unknown> = {
+        reference_id: referenceId,
+        session_type: "PAY",
+        mode: "PAYMENT_LINK",
+        amount: amountInCentavos,
+        currency: "PHP",
+        country: "PH",
+        description: `Daily Healing Word Church Support - ${purpose}`,
+        success_return_url: `${baseUrl}?donation_status=success&amount=${numericAmount}&purpose=${encodeURIComponent(purpose)}`,
+        cancel_return_url: baseUrl,
+        items: [
+          {
+            reference_id: `${referenceId}-item`,
+            type: "DIGITAL_PRODUCT",
+            name: `Church Offering (${purpose})`,
+            net_unit_amount: amountInCentavos,
+            quantity: 1,
+            currency: "PHP",
           },
-          body: JSON.stringify({
-            data: {
-              attributes: {
-                send_email_receipt: true,
-                show_description: true,
-                show_line_items: true,
-                cancel_url: baseUrl,
-                success_url: `${baseUrl}?donation_status=success&amount=${numericAmount}&purpose=${encodeURIComponent(purpose)}`,
-                description: `Daily Healing Word Church Support - Gift of ${purpose}`,
-                line_items: [
-                  {
-                    amount: amountInCentavos,
-                    currency: "PHP",
-                    name: `Church Offering (${purpose})`,
-                    quantity: 1,
-                  },
-                ],
-                payment_method_types: [
-                  "gcash",
-                  "paymaya",
-                  "grab_pay",
-                  "card",
-                  "dob_ubp",
-                ],
-                metadata: {
-                  contributor_name: name || "Anonymous Member",
-                  contributor_email: email || "anonymous@example.com",
-                  contributor_phone: phone || "N/A",
-                },
-              },
-            },
-          }),
+        ],
+        metadata: {
+          contributor_name: name || "Anonymous Member",
+          contributor_email: email || "anonymous@example.com",
+          contributor_phone: phone || "N/A",
+          purpose,
         },
-      );
+      };
 
-      const responseBody: any = await pmResponse.json();
+      if (email || mobileNumber || name) {
+        sessionPayload.customer = {
+          reference_id: `${referenceId}-customer`,
+          type: "INDIVIDUAL",
+          ...(email ? { email } : {}),
+          ...(mobileNumber ? { mobile_number: mobileNumber } : {}),
+          individual_detail: {
+            given_names: contributor.givenNames,
+            surname: contributor.surname,
+          },
+        };
+      }
 
-      if (!pmResponse.ok) {
-        console.error("PayMongo Error Details:", responseBody);
+      const xenditResponse = await fetch(`${xenditApiBase}/sessions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: authHeader,
+        },
+        body: JSON.stringify(sessionPayload),
+      });
+
+      const responseBody: any = await xenditResponse.json();
+
+      if (!xenditResponse.ok) {
+        console.error("Xendit Error Details:", responseBody);
         const errMsg =
-          responseBody?.errors?.[0]?.detail ||
-          "The payment gateway rejected the request. Please verify your API key.";
-        return res.status(pmResponse.status).json({
-          error: "PAYMONGO_GATEWAY_ERROR",
+          responseBody?.message ||
+          responseBody?.errors?.[0]?.message ||
+          "The payment gateway rejected the request. Please verify your Xendit API key.";
+        return res.status(xenditResponse.status).json({
+          error: "XENDIT_GATEWAY_ERROR",
           message: errMsg,
         });
       }
 
-      const checkoutUrl = responseBody?.data?.attributes?.checkout_url;
+      const checkoutUrl = responseBody?.payment_link_url;
       if (!checkoutUrl) {
         return res.status(500).json({
           error: "SESSION_CREATION_FAILED",
@@ -223,7 +231,6 @@ async function startServer() {
     }
   });
 
-  // Load Vite as middleware in Development mode to handle asset rendering & HM-Reloading
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -232,7 +239,6 @@ async function startServer() {
     app.use(vite.middlewares);
     console.log("Vite development middleware mounted successfully.");
   } else {
-    // In production modes, directly mount compiled SPA folders
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {

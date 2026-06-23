@@ -1,8 +1,6 @@
 import { detectBibleVerse, fetchVerseText } from "./bibleVerse";
-import {
-  DEFAULT_BIBLE_TRANSLATION,
-  type BibleTranslationId,
-} from "./bibleTranslations";
+import { getCachedBibleTranslation } from "./bibleTranslationStorage";
+import type { BibleTranslationId } from "./bibleTranslations";
 
 export interface DailyVerse {
   date: string;
@@ -166,7 +164,7 @@ async function readCachedVerse(
       parsed.date === dateKey &&
       parsed.reference &&
       parsed.text &&
-      (parsed.translation ?? DEFAULT_BIBLE_TRANSLATION) === translation
+      (parsed.translation ?? getCachedBibleTranslation()) === translation
     ) {
       return parsed;
     }
@@ -187,7 +185,7 @@ async function writeCachedVerse(
 export async function loadDailyVerse(
   storage: DailyVerseStorage,
   date = new Date(),
-  translation: BibleTranslationId = DEFAULT_BIBLE_TRANSLATION,
+  translation: BibleTranslationId = getCachedBibleTranslation(),
 ): Promise<DailyVerse> {
   const dateKey = getTodayDateKey(date);
   const cached = await readCachedVerse(storage, dateKey, translation);

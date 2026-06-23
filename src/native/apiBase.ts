@@ -1,8 +1,8 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import {
-  VITE_PAYMONGO_DEV_SERVER_URL,
-  VITE_PAYMONGO_PROD_SERVER_URL,
+  VITE_PAYMENT_DEV_SERVER_URL,
+  VITE_PAYMENT_PROD_SERVER_URL,
 } from "../config/apiKey";
 
 function getDebuggerHost(): string | null {
@@ -40,7 +40,7 @@ function resolveDevApiBase(): string {
   }
 
   if (Platform.OS === "android") {
-    return VITE_PAYMONGO_DEV_SERVER_URL.replace(/\/$/, "");
+    return VITE_PAYMENT_DEV_SERVER_URL.replace(/\/$/, "");
   }
 
   return "http://localhost:3000";
@@ -48,7 +48,7 @@ function resolveDevApiBase(): string {
 
 export function getNativeApiBaseUrl(): string {
   if (typeof __DEV__ !== "undefined" && !__DEV__) {
-    return VITE_PAYMONGO_PROD_SERVER_URL.replace(/\/$/, "");
+    return VITE_PAYMENT_PROD_SERVER_URL.replace(/\/$/, "");
   }
   return resolveDevApiBase();
 }

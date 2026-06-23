@@ -217,8 +217,8 @@ export const LANG_PT_FR: Record<
     fr: "Téléphone (facultatif)",
   },
   donationSubmit: {
-    pt: "Continuar com PayMongo",
-    fr: "Continuer avec PayMongo",
+    pt: "Continuar com Xendit",
+    fr: "Continuer avec Xendit",
   },
   donationOpenCheckout: {
     pt: "Abrir pagamento seguro",
@@ -229,8 +229,8 @@ export const LANG_PT_FR: Record<
     fr: "Paiement prêt",
   },
   donationReadyDesc: {
-    pt: "Abra o PayMongo para concluir sua contribuição com segurança.",
-    fr: "Ouvrez PayMongo pour finaliser votre offrande en toute sécurité.",
+    pt: "Abra o Xendit para concluir sua contribuição com segurança.",
+    fr: "Ouvrez Xendit pour finaliser votre offrande en toute sécurité.",
   },
   donationManualTitle: {
     pt: "Banco e GCash direto",

@@ -113,45 +113,46 @@ export function resolveGeminiApiKey(): string {
 // To obtain a free API key, visit: https://aistudio.google.com/
 export const BAKED_GEMINI_API_KEY = resolveGeminiApiKey();
 
-// PayMongo Secret Key Configuration
+// Xendit Secret Key Configuration
 //
-// If you want to accept digital offerings, paste your PayMongo Secret Key below.
-// This is used for server-side checkout session creation on the server.
-// You can get this from your PayMongo Dashboard -> Developers -> API Keys.
-export const BAKED_PAYMONGO_SECRET_KEY = getEnv("PAYMONGO_SECRET_KEY", "");
+// If you want to accept digital offerings, paste your Xendit Secret Key below.
+// This is used for server-side payment session creation on the server.
+// You can get this from your Xendit Dashboard -> Settings -> Developers -> API Keys.
+export const BAKED_XENDIT_SECRET_KEY = getEnv("XENDIT_SECRET_KEY", "");
 
-// PayMongo Public Key Configuration (Optional)
+// Xendit Test/Development Key Configuration for local testing (Optional)
 //
-// If you want to register or pack your Public API Key as well, you may paste it below.
-// For Checkout Session creation, only secret key authentication is strictly required.
-export const BAKED_PAYMONGO_PUBLIC_KEY = getEnv("PAYMONGO_PUBLIC_KEY", "");
-
-// PayMongo Sandbox/Test Key Configuration for Debugging and local testing (Optional)
-//
-// Use these test keys during development/debugging or if compiling a Debug APK
-// to avoid sending real money transactions. Standard sandbox test card figures can be used.
-export const BAKED_PAYMONGO_TEST_SECRET_KEY = getEnv(
-  "PAYMONGO_TEST_SECRET_KEY",
-  "",
-); // Fallback Sandbox Developer Key
-export const BAKED_PAYMONGO_TEST_PUBLIC_KEY = getEnv(
-  "PAYMONGO_TEST_PUBLIC_KEY",
+// Use a development key (starts with xnd_development_) during debugging to avoid
+// sending real money transactions.
+export const BAKED_XENDIT_TEST_SECRET_KEY = getEnv(
+  "XENDIT_TEST_SECRET_KEY",
   "",
 );
 
-// APK API Access configurations
+/** Set to true when Xendit backend checkout is ready for production. */
+export const ENABLE_XENDIT_CHECKOUT = false;
+
+// Backend API access for native/APK builds
 //
 // In standard web environments, relative paths like /api/... work perfectly.
 // However, when compiled as an Android APK (running via localized file:// or capacitor:// origins),
 // relative routes cannot resolve. We dynamically direct them to the appropriate endpoint.
-export const VITE_PAYMONGO_DEV_SERVER_URL = getEnv(
-  "VITE_PAYMONGO_DEV_SERVER_URL",
-  "http://10.0.2.2:3000",
-); // 10.0.2.2 points to local machine host from Android Emulator
-export const VITE_PAYMONGO_PROD_SERVER_URL = getEnv(
-  "VITE_PAYMONGO_PROD_SERVER_URL",
-  "https://ais-pre-vjag2towx5cl3hqsbscjzz-453758756696.asia-southeast1.run.app",
+export const VITE_PAYMENT_DEV_SERVER_URL = getEnv(
+  "VITE_PAYMENT_DEV_SERVER_URL",
+  getEnv("VITE_PAYMONGO_DEV_SERVER_URL", "http://10.0.2.2:3000"),
 );
+export const VITE_PAYMENT_PROD_SERVER_URL = getEnv(
+  "VITE_PAYMENT_PROD_SERVER_URL",
+  getEnv(
+    "VITE_PAYMONGO_PROD_SERVER_URL",
+    "https://ais-pre-vjag2towx5cl3hqsbscjzz-453758756696.asia-southeast1.run.app",
+  ),
+);
+
+/** @deprecated Use VITE_PAYMENT_DEV_SERVER_URL */
+export const VITE_PAYMONGO_DEV_SERVER_URL = VITE_PAYMENT_DEV_SERVER_URL;
+/** @deprecated Use VITE_PAYMENT_PROD_SERVER_URL */
+export const VITE_PAYMONGO_PROD_SERVER_URL = VITE_PAYMENT_PROD_SERVER_URL;
 
 // Utility to determine if the deployment or compiled build is in Test / Sandbox mode
 export const isSandboxMode = (): boolean => {
@@ -198,9 +199,9 @@ export const getApiUrl = (endpoint: string): string => {
     // If running in a webview context, check if we are debugging on device or emulator
     const sandbox = isSandboxMode();
     if (sandbox) {
-      return `${VITE_PAYMONGO_DEV_SERVER_URL.replace(/\/$/, "")}${endpoint}`;
+      return `${VITE_PAYMENT_DEV_SERVER_URL.replace(/\/$/, "")}${endpoint}`;
     } else {
-      return `${VITE_PAYMONGO_PROD_SERVER_URL.replace(/\/$/, "")}${endpoint}`;
+      return `${VITE_PAYMENT_PROD_SERVER_URL.replace(/\/$/, "")}${endpoint}`;
     }
   }
 
@@ -215,8 +216,8 @@ export const isNativeSandboxMode = (): boolean => {
 export const getNativeApiUrl = (endpoint: string): string => {
   // Deprecated: use src/native/apiBase.ts in React Native apps.
   const base = isNativeSandboxMode()
-    ? VITE_PAYMONGO_DEV_SERVER_URL
-    : VITE_PAYMONGO_PROD_SERVER_URL;
+    ? VITE_PAYMENT_DEV_SERVER_URL
+    : VITE_PAYMENT_PROD_SERVER_URL;
   return `${base.replace(/\/$/, "")}${endpoint}`;
 };
 

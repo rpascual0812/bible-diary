@@ -67,6 +67,10 @@ import {
   type BibleTranslationId,
 } from "../src/lib/bibleTranslations";
 import {
+  readBibleTranslationFromNativeStorage,
+  writeBibleTranslationToNativeStorage,
+} from "../src/lib/bibleTranslationStorage";
+import {
   getNativeThemeColors,
   isDarkTheme,
   normalizeTheme,
@@ -102,8 +106,9 @@ export default function NativeApp() {
   const [themeDropdownOpen, setThemeDropdownOpen] = useState(false);
   const [bibleTranslationDropdownOpen, setBibleTranslationDropdownOpen] =
     useState(false);
-  const [bibleTranslation, setBibleTranslation] =
-    useState<BibleTranslationId>("kjv");
+  const [bibleTranslation, setBibleTranslation] = useState<BibleTranslationId>(
+    () => normalizeBibleTranslation(null),
+  );
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
   const [renameSessionId, setRenameSessionId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -153,11 +158,10 @@ export default function NativeApp() {
     async function hydrate() {
       await migrateLegacyNativeStorage(getItem, setItem);
 
-      const [savedLang, savedTheme, savedBibleTranslation, savedSessions, savedActiveId] =
+      const [savedLang, savedTheme, savedSessions, savedActiveId] =
         await Promise.all([
           readNativeStorageItem(getItem, "language"),
           readNativeStorageItem(getItem, "theme"),
-          readNativeStorageItem(getItem, "bibleTranslation"),
           readNativeStorageItem(getItem, "sessions"),
           readNativeStorageItem(getItem, "activeId"),
         ]);
@@ -166,7 +170,8 @@ export default function NativeApp() {
 
       if (savedLang) setLanguage(savedLang as LangType);
       if (savedTheme) setTheme(normalizeTheme(savedTheme));
-      setBibleTranslation(normalizeBibleTranslation(savedBibleTranslation));
+      const savedTranslation = await readBibleTranslationFromNativeStorage(getItem);
+      setBibleTranslation(savedTranslation);
 
       if (savedSessions) {
         try {
@@ -336,10 +341,15 @@ export default function NativeApp() {
     await setItem(STORAGE_KEYS.theme, next);
   };
 
-  const changeBibleTranslation = async (next: BibleTranslationId) => {
-    setBibleTranslation(next);
-    await setItem(STORAGE_KEYS.bibleTranslation, next);
-  };
+  const changeBibleTranslation = useCallback(
+    async (next: BibleTranslationId) => {
+      const normalized = normalizeBibleTranslation(next);
+      if (normalized === bibleTranslation) return;
+      setBibleTranslation(normalized);
+      await writeBibleTranslationToNativeStorage(setItem, normalized);
+    },
+    [bibleTranslation],
+  );
 
   const goHome = useCallback(() => {
     setShowHomeScreen(true);

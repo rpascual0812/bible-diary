@@ -22,6 +22,7 @@ import {
   BAKED_GCASH_NAME,
   BAKED_GCASH_NUMBER,
   isNativeSandboxMode,
+  ENABLE_XENDIT_CHECKOUT,
 } from "../config/apiKey";
 import { getDefaultDonationPurpose } from "../data/givingTypes";
 import type { LangType } from "../types";
@@ -80,7 +81,7 @@ export function DonationModal({ visible, onClose, language, colors }: DonationMo
     setSubmitting(true);
     try {
       const sandbox = isNativeSandboxMode();
-      const response = await fetch(getNativeApiUrl("/api/paymongo/create-session"), {
+      const response = await fetch(getNativeApiUrl("/api/xendit/create-session"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -141,7 +142,7 @@ export function DonationModal({ visible, onClose, language, colors }: DonationMo
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={[styles.subtitle, { color: colors.muted }]}>{t("donationSubtitle", language)}</Text>
 
-          {checkoutUrl ? (
+          {ENABLE_XENDIT_CHECKOUT && checkoutUrl ? (
             <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Text style={[styles.cardTitle, { color: colors.text }]}>{t("donationReadyTitle", language)}</Text>
               <Text style={[styles.cardText, { color: colors.muted }]}>
@@ -154,7 +155,7 @@ export function DonationModal({ visible, onClose, language, colors }: DonationMo
                 <Text style={styles.primaryButtonText}>{t("donationOpenCheckout", language)}</Text>
               </Pressable>
             </View>
-          ) : (
+          ) : ENABLE_XENDIT_CHECKOUT ? (
             <>
               <Text style={[styles.sectionLabel, { color: colors.muted }]}>{t("donationAmountLabel", language)}</Text>
               <View style={styles.presetGrid}>
@@ -225,7 +226,7 @@ export function DonationModal({ visible, onClose, language, colors }: DonationMo
                 )}
               </Pressable>
             </>
-          )}
+          ) : null}
 
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>{t("donationManualTitle", language)}</Text>

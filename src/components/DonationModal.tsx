@@ -25,6 +25,7 @@ import {
   BAKED_GCASH_NAME,
   getApiUrl,
   isSandboxMode,
+  ENABLE_XENDIT_CHECKOUT,
 } from "../config/apiKey";
 import { getDefaultDonationPurpose } from "../data/givingTypes";
 
@@ -56,7 +57,9 @@ export function DonationModal({
   const [email, setEmail] = useState<string>("");
   const [mobile, setMobile] = useState<string>("");
 
-  const [activeTab, setActiveTab] = useState<"paymongo" | "manual">("paymongo");
+  const [activeTab, setActiveTab] = useState<"online" | "manual">(
+    ENABLE_XENDIT_CHECKOUT ? "online" : "manual",
+  );
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
@@ -98,7 +101,7 @@ export function DonationModal({
     setSubmitting(true);
     try {
       const sandbox = isSandboxMode();
-      const res = await fetch(getApiUrl("/api/paymongo/create-session"), {
+      const res = await fetch(getApiUrl("/api/xendit/create-session"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -146,7 +149,7 @@ export function DonationModal({
       console.error(err);
       setErrorMsg(
         err.message ||
-          "Something went wrong while connecting with PayMongo gateway.",
+          "Something went wrong while connecting with the Xendit gateway.",
       );
     } finally {
       setSubmitting(false);
@@ -231,20 +234,20 @@ export function DonationModal({
       hil: "Numero sang Telepono (Opsyonal)",
     },
     submitButton: {
-      en: "Proceed with PayMongo Secure Checkout",
-      fil: "Magpatuloy sa PayMongo Safe Checkout",
-      ceb: "Ipadayon sa PayMongo Seguro nga Sandbox",
-      bik: "Ipadagos sa PayMongo Safe Checkout",
-      ilo: "Ituloy iti PayMongo Secure Checkout",
-      hil: "Magpadayon sa PayMongo Secure Checkout",
+      en: "Proceed with Xendit Secure Checkout",
+      fil: "Magpatuloy sa Xendit Safe Checkout",
+      ceb: "Ipadayon sa Xendit Secure Checkout",
+      bik: "Ipadagos sa Xendit Safe Checkout",
+      ilo: "Ituloy iti Xendit Secure Checkout",
+      hil: "Magpadayon sa Xendit Secure Checkout",
     },
     tabsOnline: {
-      en: "E-Wallet & Card (PayMongo)",
-      fil: "E-Wallet & Card (PayMongo)",
-      ceb: "E-Wallet & Card (PayMongo)",
-      bik: "E-Wallet & Card (PayMongo)",
+      en: "E-Wallet & Card (Xendit)",
+      fil: "E-Wallet & Card (Xendit)",
+      ceb: "E-Wallet & Card (Xendit)",
+      bik: "E-Wallet & Card (Xendit)",
       ilo: "Online E-Wallet & Card",
-      hil: "E-Wallet & Card (PayMongo)",
+      hil: "E-Wallet & Card (Xendit)",
     },
     tabsOffline: {
       en: "GCash QR & Direct Bank Details",
@@ -255,12 +258,12 @@ export function DonationModal({
       hil: "Direktang Bangko & GCash QR",
     },
     securityNotice: {
-      en: "Our digital collection basket uses official PayMongo checkout sessions. Your payment is 100% secure.",
-      fil: "Ang ating digital na handugan ay ligtas na gumagamit ng opisyal na PayMongo checkout sessions. Ang inyong transaksyon ay sagrado at ligtas.",
-      ceb: "Kaluwasan: Ang atong digital nga koleksyon naggamit sa opisyal nga PayMongo. Sigurado ug luwas.",
-      bik: "Kaluwasan: An satuyang koleksyon naggagamit kan opisyal na PayMongo. Ligtas asin sigurado.",
-      ilo: "Nailawag: Sigurado ken natalged ti online panagdatonyo babaen iti PayMongo.",
-      hil: "Ang aton digital nga halad nagagamit sang opisyal kag luwas nga PayMongo checkout.",
+      en: "Our digital collection basket uses official Xendit payment sessions. Your payment is 100% secure.",
+      fil: "Ang ating digital na handugan ay ligtas na gumagamit ng opisyal na Xendit payment sessions. Ang inyong transaksyon ay sagrado at ligtas.",
+      ceb: "Kaluwasan: Ang atong digital nga koleksyon naggamit sa opisyal nga Xendit. Sigurado ug luwas.",
+      bik: "Kaluwasan: An satuyang koleksyon naggagamit kan opisyal na Xendit. Ligtas asin sigurado.",
+      ilo: "Nailawag: Sigurado ken natalged ti online panagdatonyo babaen iti Xendit.",
+      hil: "Ang aton digital nga halad nagagamit sang opisyal kag luwas nga Xendit checkout.",
     },
     proceedRedirect: {
       en: "Open Secure Checkout Window",
@@ -271,12 +274,12 @@ export function DonationModal({
       hil: "Buksan ang Secure Checkout Window",
     },
     redirectDesc: {
-      en: "Click the button below to complete your contribution securely. Your transaction will be managed directly on PayMongo's secure platform.",
-      fil: "I-click ang button sa ibaba para makumpleto ang handog. Ang inyong pagbabayad ay ligtas na pamamahalaan ng opisyal na PayMongo platform.",
-      ceb: "I-click ang button sa ubos alang sa pagkompleto sa halad. Pagdumalahon kini sa siguradong plataporma sa PayMongo.",
-      bik: "I-click an button sa ibaba para makumpleto an alay. Ligatas ining pamamahalaan kan opisyal na PayMongo platform.",
-      ilo: "I-click ti buton dita baba tapno mailpas iti daton. Maasikaso dita uneg ti PayMongo.",
-      hil: "I-click ang button sa dalom agod makumpleto ang ihalad. Pagadumalahan ini sang secure nga plataporma sang PayMongo.",
+      en: "Click the button below to complete your contribution securely. Your transaction will be managed directly on Xendit's secure platform.",
+      fil: "I-click ang button sa ibaba para makumpleto ang handog. Ang inyong pagbabayad ay ligtas na pamamahalaan ng opisyal na Xendit platform.",
+      ceb: "I-click ang button sa ubos alang sa pagkompleto sa halad. Pagdumalahon kini sa siguradong plataporma sa Xendit.",
+      bik: "I-click an button sa ibaba para makumpleto an alay. Ligatas ining pamamahalaan kan opisyal na Xendit platform.",
+      ilo: "I-click ti buton dita baba tapno mailpas iti daton. Maasikaso dita uneg ti Xendit.",
+      hil: "I-click ang button sa dalom agod makumpleto ang ihalad. Pagadumalahan ini sang secure nga plataporma sang Xendit.",
     },
     manualSubtitle: {
       en: "You may also send gifts through standard mobile bank transfers or GCash.",
@@ -353,15 +356,21 @@ export function DonationModal({
         </div>
 
         {/* Modal Tabs: Online vs Manual */}
-        <div className="grid grid-cols-2 text-center border-b border-white/5 pt-1">
+        <div
+          className={cn(
+            "grid text-center border-b border-white/5 pt-1",
+            ENABLE_XENDIT_CHECKOUT ? "grid-cols-2" : "grid-cols-1",
+          )}
+        >
+          {ENABLE_XENDIT_CHECKOUT && (
           <button
             onClick={() => {
-              setActiveTab("paymongo");
+              setActiveTab("online");
               setCheckoutUrl(null);
             }}
             className={cn(
               "py-3 font-sans text-xs font-semibold tracking-wider transition-all border-b-2 cursor-pointer flex items-center justify-center gap-1.5",
-              activeTab === "paymongo"
+              activeTab === "online"
                 ? isDark
                   ? "border-gold-500 text-gold-400 font-bold bg-white/[0.02]"
                   : "border-gold-600 text-gold-700 font-bold bg-slate-50"
@@ -373,6 +382,7 @@ export function DonationModal({
             <CreditCard className="w-3.5 h-3.5" />
             <span>{uiTexts.tabsOnline[language] || uiTexts.tabsOnline.en}</span>
           </button>
+          )}
           <button
             onClick={() => {
               setActiveTab("manual");
@@ -402,7 +412,7 @@ export function DonationModal({
             {uiTexts.subtitle[language] || uiTexts.subtitle.en}
           </p>
 
-          {activeTab === "paymongo" ? (
+          {ENABLE_XENDIT_CHECKOUT && activeTab === "online" ? (
             checkoutUrl ? (
               // REDIRECT STEP
               <div className="flex flex-col items-center justify-center py-8 text-center space-y-4">
@@ -660,24 +670,12 @@ export function DonationModal({
                         <span>APK Debug / Sandbox Mode Active</span>
                       </p>
                       <p>
-                        You can test payments safely. Use PayMongo sandbox test
-                        card numbers:
+                        You can test payments safely using your Xendit
+                        development API key and Xendit test payment channels.
                       </p>
                       <ul className="list-disc pl-4 space-y-0.5 font-mono text-[9px]">
-                        <li>
-                          Mock Visa Card:{" "}
-                          <span className="font-bold select-all">
-                            4111 1111 1111 4111
-                          </span>{" "}
-                          (Any exp. / any CVV)
-                        </li>
-                        <li>
-                          Mock GCash Phone:{" "}
-                          <span className="font-bold select-all">
-                            09000000000
-                          </span>{" "}
-                          (Any OTP code like 123456)
-                        </li>
+                        <li>Use GCash, Maya, cards, or bank transfer in test mode</li>
+                        <li>Configure XENDIT_TEST_SECRET_KEY on the backend server</li>
                       </ul>
                     </div>
                   )}

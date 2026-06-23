@@ -73,6 +73,10 @@ import {
   normalizeBibleTranslation,
   type BibleTranslationId,
 } from "./lib/bibleTranslations";
+import {
+  readBibleTranslationFromWebStorage,
+  writeBibleTranslationToWebStorage,
+} from "./lib/bibleTranslationStorage";
 import type { LangType } from "./types";
 import {
   sessionNeedsTranslation,
@@ -704,21 +708,16 @@ export default function App() {
     localStorage.setItem(STORAGE_KEYS.theme, next);
   };
 
-  const [bibleTranslation, setBibleTranslation] = useState<BibleTranslationId>(() => {
-    try {
-      migrateLegacyWebStorage();
-      return normalizeBibleTranslation(
-        localStorage.getItem(STORAGE_KEYS.bibleTranslation),
-      );
-    } catch {
-      return normalizeBibleTranslation(null);
-    }
-  });
+  const [bibleTranslation, setBibleTranslation] = useState<BibleTranslationId>(
+    () => readBibleTranslationFromWebStorage(),
+  );
 
-  const changeBibleTranslation = (next: BibleTranslationId) => {
-    setBibleTranslation(next);
-    localStorage.setItem(STORAGE_KEYS.bibleTranslation, next);
-  };
+  const changeBibleTranslation = useCallback((next: BibleTranslationId) => {
+    const normalized = normalizeBibleTranslation(next);
+    if (normalized === bibleTranslation) return;
+    writeBibleTranslationToWebStorage(normalized);
+    setBibleTranslation(normalized);
+  }, [bibleTranslation]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -2474,7 +2473,7 @@ export default function App() {
                 <p className="text-slate-500">
                   PROVIDER:{" "}
                   <span className="text-[#3b82f6] font-bold">
-                    PayMongo Gateway Secured
+                    Xendit Gateway Secured
                   </span>
                 </p>
               </div>
