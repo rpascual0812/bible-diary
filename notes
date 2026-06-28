@@ -97,3 +97,14 @@ OR if Play app is still com.rpascual.studio.biblediary, upload the Jun 16 AAB li
 OR Play Console → App signing → Request upload key reset (if no production release yet), then use the new keystore.
 
 # generate App bundles to be uploaded to google play console. Increment version code
+
+
+
+Next prompt:
+
+1. Allow the user to download the bible version locally and set it as default bible version so verse searches become faster and available offline.
+2. When an exact verse was sent by the user, search for the verse from the local database using the currently active bible version first then show it to the user, then, construct the response.
+3. Convert all responses to the currently active language.
+4. If offline, search for bible verses only, then let the user know that the device is currently offline and responses are limited.
+5. Add button at the left corner of the chat input to select chat or notes. When notes is selected, no responses are needed. Just let the user send the notes to the chat.
+6. Allow user to use new line that automatically increases the height of the chat text area. Chat area has a maximum of 5 lines, anything more than that will have to scroll.
