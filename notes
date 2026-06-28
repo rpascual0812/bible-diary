@@ -107,4 +107,4 @@ Next prompt:
 3. Convert all responses to the currently active language.
 4. If offline, search for bible verses only, then let the user know that the device is currently offline and responses are limited.
 5. Add button at the left corner of the chat input to select chat or notes. When notes is selected, no responses are needed. Just let the user send the notes to the chat.
-6. Allow user to use new line that automatically increases the height of the chat text area. Chat area has a maximum of 5 lines, anything more than that will have to scroll.
+

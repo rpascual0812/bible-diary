@@ -854,6 +854,7 @@ export default function App() {
   }, []);
 
   const [input, setInput] = useState("");
+  const [composerMode, setComposerMode] = useState<"chat" | "notes">("chat");
   const [isLoading, setIsLoading] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
 
@@ -1431,8 +1432,11 @@ export default function App() {
   const handleSend = async (customText?: string) => {
     const textToSend = customText ? customText.trim() : input.trim();
     if (!textToSend || isLoading) return;
+    const shouldRequestResponse = composerMode === "chat";
 
-    setIsLoading(true);
+    if (shouldRequestResponse) {
+      setIsLoading(true);
+    }
     setInput("");
 
     let sessionId = activeSessionId;
@@ -1497,6 +1501,8 @@ export default function App() {
       );
       chatHistoryTrapped.current = true;
     }
+
+    if (!shouldRequestResponse) return;
 
     try {
       let aiText = "";
@@ -2398,6 +2404,29 @@ export default function App() {
               )}
             >
               <button
+                type="button"
+                onClick={() =>
+                  setComposerMode((mode) => (mode === "chat" ? "notes" : "chat"))
+                }
+                className={cn(
+                  "h-9 px-3 rounded-full flex items-center gap-1.5 text-xs font-semibold transition-colors flex-shrink-0",
+                  composerMode === "notes"
+                    ? "bg-gold-500 text-midnight"
+                    : isDarkTheme(theme)
+                      ? "bg-white/5 text-slate-300 hover:bg-white/10"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200",
+                )}
+                title={composerMode === "notes" ? "Notes mode" : "Chat mode"}
+                aria-label={`Composer mode: ${composerMode}`}
+              >
+                {composerMode === "notes" ? (
+                  <Pencil className="w-3.5 h-3.5" />
+                ) : (
+                  <MessageSquare className="w-3.5 h-3.5" />
+                )}
+                <span>{composerMode === "notes" ? "Notes" : "Chat"}</span>
+              </button>
+              <button
                 onClick={() => {
                   // Let user explore local help
                   setInput(
@@ -2437,7 +2466,9 @@ export default function App() {
                   }
                 }}
                 placeholder={
-                  currentOnlineStatus
+                  composerMode === "notes"
+                    ? "Write a note..."
+                    : currentOnlineStatus
                     ? getUiTranslation("placeholderOnline", language)
                     : getUiTranslation("placeholderOffline", language)
                 }

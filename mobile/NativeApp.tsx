@@ -97,6 +97,7 @@ export default function NativeApp() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [showHomeScreen, setShowHomeScreen] = useState(true);
   const [input, setInput] = useState("");
+  const [composerMode, setComposerMode] = useState<"chat" | "notes">("chat");
   const [isLoading, setIsLoading] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const isOnline = useOnlineStatus();
@@ -617,8 +618,11 @@ export default function NativeApp() {
   const handleSend = async (customText?: string) => {
     const textToSend = (customText ?? input).trim();
     if (!textToSend || isLoading) return;
+    const shouldRequestResponse = composerMode === "chat";
 
-    setIsLoading(true);
+    if (shouldRequestResponse) {
+      setIsLoading(true);
+    }
     setInput("");
 
     let sessionId = activeSessionId;
@@ -678,6 +682,8 @@ export default function NativeApp() {
     setSessions(withUser);
     setShowHomeScreen(false);
     void saveSessions(withUser, sessionId);
+
+    if (!shouldRequestResponse) return;
 
     try {
       let aiText = "";
@@ -798,6 +804,8 @@ export default function NativeApp() {
         goHome={goHome}
         input={input}
         setInput={setInput}
+        composerMode={composerMode}
+        setComposerMode={setComposerMode}
         isLoading={isLoading}
         isTranslating={isTranslating}
         sidebarOpen={sidebarOpen}
@@ -856,6 +864,8 @@ interface NativeAppContentProps {
   goHome: () => void;
   input: string;
   setInput: (value: string) => void;
+  composerMode: "chat" | "notes";
+  setComposerMode: React.Dispatch<React.SetStateAction<"chat" | "notes">>;
   isLoading: boolean;
   isTranslating: boolean;
   sidebarOpen: boolean;
@@ -911,6 +921,8 @@ function NativeAppContent({
   goHome,
   input,
   setInput,
+  composerMode,
+  setComposerMode,
   isLoading,
   isTranslating,
   sidebarOpen,
@@ -1312,6 +1324,35 @@ function NativeAppContent({
               },
             ]}
           >
+            <Pressable
+              onPress={() =>
+                setComposerMode((mode) => (mode === "chat" ? "notes" : "chat"))
+              }
+              style={[
+                styles.modeButton,
+                {
+                  backgroundColor:
+                    composerMode === "notes"
+                      ? colors.sendButtonBg
+                      : colors.input,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  {
+                    color:
+                      composerMode === "notes"
+                        ? colors.sendButtonText
+                        : colors.text,
+                  },
+                ]}
+              >
+                {composerMode === "notes" ? "Notes" : "Chat"}
+              </Text>
+            </Pressable>
             <TextInput
               ref={inputRef}
               value={input}
@@ -1320,7 +1361,9 @@ function NativeAppContent({
                 setTimeout(() => onComposerFocus(), 50);
               }}
               placeholder={
-                isOnline
+                composerMode === "notes"
+                  ? "Write a note..."
+                  : isOnline
                   ? t("placeholderOnline", language)
                   : t("placeholderOffline", language)
               }
@@ -1943,6 +1986,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 15,
+  },
+  modeButton: {
+    minHeight: 44,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 2,
+  },
+  modeButtonText: {
+    fontSize: 13,
+    fontWeight: "700",
   },
   sendButton: {
     borderRadius: 14,
