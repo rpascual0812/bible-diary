@@ -104,7 +104,7 @@ Next prompt:
 
 1. Allow the user to download the bible version locally and set it as default bible version so verse searches become faster and available offline.
 2. When an exact verse was sent by the user, search for the verse from the local database using the currently active bible version first then show it to the user, then, construct the response.
-3. Convert all responses to the currently active language.
+3. Convert all responses, bible verse and follow up questions to the currently active language.
 4. If offline, search for bible verses only, then let the user know that the device is currently offline and responses are limited.
 5. Add button at the left corner of the chat input to select chat or notes. When notes is selected, no responses are needed. Just let the user send the notes to the chat.
 

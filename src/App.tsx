@@ -37,7 +37,13 @@ import { BibleTranslationDropdown } from "./components/BibleTranslationDropdown"
 import { BibleVerseReader } from "./components/BibleVerseReader";
 import { FollowUpChips } from "./components/FollowUpChips";
 import { processModelResponse } from "./lib/followUpSuggestions";
-import { detectBibleVerse } from "./lib/bibleVerse";
+import {
+  detectBibleVerse,
+  fetchChapterVersesFromNetwork,
+  fetchVerseText,
+  formatVerseRef,
+  localizeVerseReference,
+} from "./lib/bibleVerse";
 import {
   getRootClassName,
   getSplashClassName,
@@ -73,24 +79,36 @@ import {
 import { migrateLegacyWebStorage, STORAGE_KEYS } from "./lib/appIdentity";
 import { resolvePtFrTranslation } from "./lib/langPtFr";
 import {
+  BIBLE_TRANSLATION_OPTIONS,
   normalizeBibleTranslation,
   type BibleTranslationId,
 } from "./lib/bibleTranslations";
 import {
   readBibleTranslationFromWebStorage,
+  setCachedBibleTranslation,
   writeBibleTranslationToWebStorage,
 } from "./lib/bibleTranslationStorage";
 import type { LangType } from "./types";
 import {
   sessionNeedsTranslation,
   translateChatSession,
+  translateText,
 } from "./services/translationService";
+import {
+  downloadLocalBibleTranslation,
+  isBibleTranslationDownloaded,
+  setLocalBibleStorageAdapter,
+  type LocalBibleDownloadProgress,
+} from "./lib/localBible";
 
 export type { LangType };
 import brandLogo from "./assets/images/brand-logo.png";
 import {
+  getLocalBibleItemFromIndexedDB,
   saveSessionsToIndexedDB,
   loadSessionsFromIndexedDB,
+  removeLocalBibleItemFromIndexedDB,
+  setLocalBibleItemInIndexedDB,
 } from "./lib/indexedDbHelper";
 
 export interface ChatSession {
@@ -282,6 +300,45 @@ const getUiTranslation = (key: string, lang: LangType) => {
       bik: "I-simulate an Offline",
       ilo: "I-simulate ti Offline",
       hil: "I-simulate ang Offline",
+    },
+    autoDownloadBiblePrompt: {
+      en: "KJV is not downloaded yet. Download it now so the app can be used offline? If you decline, you can continue using the app online only.",
+      fil: "Wala pang na-download ang KJV. I-download ito ngayon para magamit ang app offline? Kung tatanggi ka, maaari ka pa ring gumamit ng app online lamang.",
+      ceb: "Wala pa na-download ang KJV. I-download kini karon para magamit ang app offline? Kung moundang ka, makapadayon ka pa sa paggamit sa app online lamang.",
+      bik: "Dai pa na-download an KJV. I-download ini ngonian para magin offline ang app? Kung hindi ka sumunod, pwede ka pa ring maggamit kan app online lamang.",
+      ilo: "Awan pay na-download a KJV. I-download daytoy ita tapno mausar ti app iti offline? No tumanggi ka, mabalin ka pay a magusar iti app iti online laeng.",
+      hil: "Wala pa na-download ang KJV. I-download ini subong para magamit ang app offline? Kon magpabayaw ka, pwede ka pa gid magamit ang app online lang.",
+      es: "KJV aún no está descargado. ¿Descargarlo ahora para poder usar la app sin conexión? Si lo rechazas, podrás seguir usando la app solo en línea.",
+      la: "KJV nondum delatum est. Visne nunc deferre ut app offline utaris? Si recuses, app modo online uti poteris.",
+      el: "Το KJV δεν έχει ακόμη ληφθεί. Θέλετε να το κατεβάσετε τώρα ώστε η εφαρμογή να λειτουργεί εκτός σύνδεσης; Αν αρνηθείτε, μπορείτε να συνεχίσετε να χρησιμοποιείτε την εφαρμογή μόνο online.",
+      pt: "O KJV ainda não foi baixado. Baixar agora para usar o app offline? Se recusar, você poderá continuar usando o app apenas online.",
+      fr: "La KJV n’est pas encore téléchargée. La télécharger maintenant pour pouvoir utiliser l’application hors ligne ? Si vous refusez, vous pourrez continuer à utiliser l’application uniquement en ligne.",
+    },
+    offlineLimitedNotice: {
+      en: "You are offline. I can only search the available Bible verses locally, and responses are limited.",
+      fil: "Nasa offline ka. Maaring maghanap lamang ako ng mga available na bersikulo sa lokal, at limitado ang mga sagot.",
+      ceb: "Naka-offline ka. Makapangita lang ako sa mga available nga bersikulo sa lokal, ug limitado ang mga tubag.",
+      bik: "Offline ka. Sarong lokal na paghanap kan available na bersikulo lang an pwede kong gibohon, asin limitado an mga simbag.",
+      ilo: "Offline ka. Makasarak laeng ti available a bersikulo iti lokal, ken limitado dagiti sungbat.",
+      hil: "Offline ka. Makapangita lang ako sang available nga bersikulo sa lokal, kag limitado ang mga sabat.",
+      es: "Estás sin conexión. Solo puedo buscar versículos bíblicos disponibles localmente, y las respuestas son limitadas.",
+      la: "Offline es. Versiculos biblicos tantum localiter quaerere possum, et responsa limitata sunt.",
+      el: "Είστε εκτός σύνδεσης. Μπορώ να αναζητήσω μόνο διαθέσιμα βιβλικά εδάφια τοπικά, και οι απαντήσεις είναι περιορισμένες.",
+      pt: "Você está offline. Só consigo buscar versículos bíblicos disponíveis localmente, e as respostas são limitadas.",
+      fr: "Vous êtes hors ligne. Je ne peux rechercher que les versets bibliques disponibles localement, et les réponses sont limitées.",
+    },
+    downloadBibleError: {
+      en: "Could not download this Bible version. Please check your connection and try again.",
+      fil: "Hindi ma-download ang bersyong ito ng Bibliya. Pakisuri ang iyong koneksyon at subukan ulit.",
+      ceb: "Dili ma-download kini nga bersyon sa Bibliya. Palihug susihon ang imong koneksyon ug sulayi pag-usab.",
+      bik: "Dai ma-download ini nang bersyon kan Biblia. Pakisuri an saimong koneksyon asin subukan liwat.",
+      ilo: "Saan a ma-download daytoy a bersyon ti Biblia. Pakisuri ti koneksionyo ken subukan manen.",
+      hil: "Indi ma-download ini nga bersyon sang Biblia. Palihug tsekyar ang imo koneksyon kag subukan liwat.",
+      es: "No se pudo descargar esta versión de la Biblia. Comprueba tu conexión e inténtalo de nuevo.",
+      la: "Hanc bibliorum versionem deferre non potui. Quaeso conexionem inspice et iterum conare.",
+      el: "Δεν ήταν δυνατή η λήψη αυτής της έκδοσης της Βίβλου. Ελέγξτε τη σύνδεσή σας και δοκιμάστε ξανά.",
+      pt: "Não foi possível baixar esta versão da Bíblia. Verifique sua conexão e tente novamente.",
+      fr: "Impossible de télécharger cette version de la Bible. Vérifiez votre connexion et réessayez.",
     },
     connected: {
       en: "Connection OK",
@@ -725,13 +782,83 @@ export default function App() {
   const [bibleTranslation, setBibleTranslation] = useState<BibleTranslationId>(
     () => readBibleTranslationFromWebStorage(),
   );
+  const [downloadedBibleTranslations, setDownloadedBibleTranslations] = useState<
+    Set<BibleTranslationId>
+  >(() => new Set());
+  const [downloadingBibleTranslation, setDownloadingBibleTranslation] =
+    useState<BibleTranslationId | null>(null);
+  const [bibleDownloadProgress, setBibleDownloadProgress] =
+    useState<LocalBibleDownloadProgress | null>(null);
+  const autoDownloadPromptedRef = useRef(false);
 
   const changeBibleTranslation = useCallback((next: BibleTranslationId) => {
     const normalized = normalizeBibleTranslation(next);
     if (normalized === bibleTranslation) return;
     writeBibleTranslationToWebStorage(normalized);
+    setCachedBibleTranslation(normalized);
     setBibleTranslation(normalized);
   }, [bibleTranslation]);
+
+  useEffect(() => {
+    setLocalBibleStorageAdapter({
+      getItem: getLocalBibleItemFromIndexedDB,
+      setItem: setLocalBibleItemInIndexedDB,
+      removeItem: removeLocalBibleItemFromIndexedDB,
+    });
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadDownloadedTranslations = async () => {
+      const entries = await Promise.all(
+        BIBLE_TRANSLATION_OPTIONS.map(async (option) => ({
+          id: option.id,
+          downloaded: await isBibleTranslationDownloaded(option.id),
+        })),
+      );
+      if (!active) return;
+      setDownloadedBibleTranslations(
+        new Set(
+          entries.filter((entry) => entry.downloaded).map((entry) => entry.id),
+        ),
+      );
+    };
+    void loadDownloadedTranslations();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const downloadAndSetBibleTranslation = useCallback(
+    async (next: BibleTranslationId) => {
+      if (downloadingBibleTranslation) return;
+      const normalized = normalizeBibleTranslation(next);
+      setDownloadingBibleTranslation(normalized);
+      setBibleDownloadProgress(null);
+      try {
+        await downloadLocalBibleTranslation(
+          normalized,
+          fetchChapterVersesFromNetwork,
+          setBibleDownloadProgress,
+        );
+        writeBibleTranslationToWebStorage(normalized);
+        setCachedBibleTranslation(normalized);
+        setBibleTranslation(normalized);
+        setDownloadedBibleTranslations((current) => {
+          const updated = new Set(current);
+          updated.add(normalized);
+          return updated;
+        });
+      } catch (err) {
+        console.error("Failed to download Bible translation:", err);
+        window.alert(getUiTranslation("downloadBibleError", language));
+      } finally {
+        setDownloadingBibleTranslation(null);
+        setBibleDownloadProgress(null);
+      }
+    },
+    [downloadingBibleTranslation],
+  );
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -1429,6 +1556,31 @@ export default function App() {
 
   const currentOnlineStatus = isOnline && !forceOffline;
 
+  useEffect(() => {
+    if (
+      autoDownloadPromptedRef.current ||
+      !currentOnlineStatus ||
+      downloadingBibleTranslation ||
+      downloadedBibleTranslations.size > 0
+    ) {
+      return;
+    }
+
+    autoDownloadPromptedRef.current = true;
+    const shouldDownload = window.confirm(
+      getUiTranslation("autoDownloadBiblePrompt", language),
+    );
+    if (shouldDownload) {
+      void downloadAndSetBibleTranslation("kjv");
+    }
+  }, [
+    currentOnlineStatus,
+    language,
+    downloadAndSetBibleTranslation,
+    downloadingBibleTranslation,
+    downloadedBibleTranslations,
+  ]);
+
   const handleSend = async (customText?: string) => {
     const textToSend = customText ? customText.trim() : input.trim();
     if (!textToSend || isLoading) return;
@@ -1502,20 +1654,71 @@ export default function App() {
       chatHistoryTrapped.current = true;
     }
 
-    if (!shouldRequestResponse) return;
+    if (!shouldRequestResponse) {
+      const freshList = sList.map((s) => {
+        if (s.id === sessionId) {
+          return {
+            ...s,
+            messages: [...s.messages, userMsg],
+            language: s.language ?? language,
+          };
+        }
+        return s;
+      });
+      saveSessions(freshList);
+      return;
+    }
 
     try {
       let aiText = "";
+      const verseInfo = detectBibleVerse(textToSend);
+      const activeVerseReference = verseInfo ? formatVerseRef(verseInfo) : null;
+      let versePreview = "";
+
+      if (verseInfo) {
+        try {
+          const verseText = await fetchVerseText(verseInfo, bibleTranslation);
+          if (verseText) {
+            const localizedReference = localizeVerseReference(
+              activeVerseReference ?? "",
+              language,
+            );
+            versePreview = `**${localizedReference}**\n\n> ${verseText}`;
+          }
+        } catch {
+          // Fall back to the normal response flow when the verse is not available locally.
+        }
+      }
+
+      const apiKey = getTranslationApiKey();
       if (geminiRef.current && currentOnlineStatus) {
-        aiText = await geminiRef.current.sendMessage(textToSend);
+        const cloudReply = await geminiRef.current.sendMessage(textToSend);
+        aiText = versePreview
+          ? `${versePreview}\n\n${cloudReply}`
+          : cloudReply;
       } else if (!currentOnlineStatus) {
-        aiText = getOfflineAnswer(textToSend, language);
+        const offlineReply = getOfflineAnswer(textToSend, language);
+        aiText = versePreview
+          ? `${versePreview}\n\n${getUiTranslation("offlineLimitedNotice", language)}\n\n${offlineReply}`
+          : `${getUiTranslation("offlineLimitedNotice", language)}\n\n${offlineReply}`;
       } else {
-        aiText = `## Local Study Mode\n\nYou are online, but cloud AI is not configured (missing Gemini API key). Using the offline Bible study database.\n\n${getOfflineAnswer(textToSend, language)}`;
+        const offlineReply = getOfflineAnswer(textToSend, language);
+        aiText = versePreview
+          ? `${versePreview}\n\n## Local Study Mode\n\nYou are online, but cloud AI is not configured (missing Gemini API key). Using the offline Bible study database.\n\n${offlineReply}`
+          : `## Local Study Mode\n\nYou are online, but cloud AI is not configured (missing Gemini API key). Using the offline Bible study database.\n\n${offlineReply}`;
+      }
+
+      let responseText = aiText;
+      if (currentOnlineStatus && apiKey && language !== "en") {
+        try {
+          responseText = await translateText(apiKey, aiText, language);
+        } catch {
+          // Keep the original reply if translation fails.
+        }
       }
 
       const { text: displayText, followUps } = processModelResponse(
-        aiText,
+        responseText,
         textToSend,
         language,
       );
@@ -1929,6 +2132,10 @@ export default function App() {
           <BibleTranslationDropdown
             value={bibleTranslation}
             onChange={changeBibleTranslation}
+            onDownload={downloadAndSetBibleTranslation}
+            downloadedTranslations={downloadedBibleTranslations}
+            downloadingTranslation={downloadingBibleTranslation}
+            downloadProgress={bibleDownloadProgress}
             label={getUiTranslation("bibleVersionLabel", language)}
             align="up"
             className="w-full"
@@ -2467,7 +2674,7 @@ export default function App() {
                 }}
                 placeholder={
                   composerMode === "notes"
-                    ? "Write a note..."
+                    ? getUiTranslation("placeholderOffline", language)
                     : currentOnlineStatus
                     ? getUiTranslation("placeholderOnline", language)
                     : getUiTranslation("placeholderOffline", language)

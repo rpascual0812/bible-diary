@@ -61,9 +61,13 @@ import { ThemeDropdown } from "../src/native/ThemeDropdown";
 import { BibleTranslationDropdown } from "../src/native/BibleTranslationDropdown";
 import { DonationModal } from "../src/native/DonationModal";
 import { NativeBibleVerseReader } from "../src/native/BibleVerseReader";
-import { detectBibleVerse } from "../src/lib/bibleVerse";
+import {
+  detectBibleVerse,
+  fetchChapterVersesFromNetwork,
+} from "../src/lib/bibleVerse";
 import { mergeImportedSessions } from "../src/lib/conversationBackup";
 import {
+  BIBLE_TRANSLATION_OPTIONS,
   normalizeBibleTranslation,
   type BibleTranslationId,
 } from "../src/lib/bibleTranslations";
@@ -77,6 +81,12 @@ import {
   normalizeTheme,
   type ThemeId,
 } from "../src/theme";
+import {
+  downloadLocalBibleTranslation,
+  isBibleTranslationDownloaded,
+  setLocalBibleStorageAdapter,
+  type LocalBibleDownloadProgress,
+} from "../src/lib/localBible";
 
 const brandLogo = require("../src/assets/images/brand-logo.png");
 
@@ -111,6 +121,13 @@ export default function NativeApp() {
   const [bibleTranslation, setBibleTranslation] = useState<BibleTranslationId>(
     () => normalizeBibleTranslation(null),
   );
+  const [downloadedBibleTranslations, setDownloadedBibleTranslations] = useState<
+    Set<BibleTranslationId>
+  >(() => new Set());
+  const [downloadingBibleTranslation, setDownloadingBibleTranslation] =
+    useState<BibleTranslationId | null>(null);
+  const [bibleDownloadProgress, setBibleDownloadProgress] =
+    useState<LocalBibleDownloadProgress | null>(null);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
   const [renameSessionId, setRenameSessionId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -184,6 +201,32 @@ export default function NativeApp() {
   useEffect(() => {
     const timer = setTimeout(() => setShowSplash(false), 1500);
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    setLocalBibleStorageAdapter({ getItem, setItem, removeItem });
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadDownloadedTranslations = async () => {
+      const entries = await Promise.all(
+        BIBLE_TRANSLATION_OPTIONS.map(async (option) => ({
+          id: option.id,
+          downloaded: await isBibleTranslationDownloaded(option.id),
+        })),
+      );
+      if (!active) return;
+      setDownloadedBibleTranslations(
+        new Set(
+          entries.filter((entry) => entry.downloaded).map((entry) => entry.id),
+        ),
+      );
+    };
+    void loadDownloadedTranslations();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -401,6 +444,38 @@ export default function NativeApp() {
       await writeBibleTranslationToNativeStorage(setItem, normalized);
     },
     [bibleTranslation],
+  );
+
+  const downloadAndSetBibleTranslation = useCallback(
+    async (next: BibleTranslationId) => {
+      if (downloadingBibleTranslation) return;
+      const normalized = normalizeBibleTranslation(next);
+      setDownloadingBibleTranslation(normalized);
+      setBibleDownloadProgress(null);
+      try {
+        await downloadLocalBibleTranslation(
+          normalized,
+          fetchChapterVersesFromNetwork,
+          setBibleDownloadProgress,
+        );
+        setBibleTranslation(normalized);
+        await writeBibleTranslationToNativeStorage(setItem, normalized);
+        setDownloadedBibleTranslations((current) => {
+          const updated = new Set(current);
+          updated.add(normalized);
+          return updated;
+        });
+      } catch {
+        Alert.alert(
+          "Download failed",
+          "Could not download this Bible version. Please check your connection and try again.",
+        );
+      } finally {
+        setDownloadingBibleTranslation(null);
+        setBibleDownloadProgress(null);
+      }
+    },
+    [downloadingBibleTranslation],
   );
 
   const goHome = useCallback(() => {
@@ -795,6 +870,9 @@ export default function NativeApp() {
         isOnline={isOnline}
         cloudQuotaExceeded={cloudQuotaExceeded}
         bibleTranslation={bibleTranslation}
+        downloadedBibleTranslations={downloadedBibleTranslations}
+        downloadingBibleTranslation={downloadingBibleTranslation}
+        bibleDownloadProgress={bibleDownloadProgress}
         activeSession={activeSession}
         messages={messages}
         verseSuggestions={verseSuggestions}
@@ -821,6 +899,7 @@ export default function NativeApp() {
         handleLanguageChange={handleLanguageChange}
         changeTheme={changeTheme}
         changeBibleTranslation={changeBibleTranslation}
+        downloadAndSetBibleTranslation={downloadAndSetBibleTranslation}
         setSidebarOpen={setSidebarOpen}
         closeSidebar={closeSidebar}
         setLangDropdownOpen={setLangDropdownOpen}
@@ -853,6 +932,9 @@ interface NativeAppContentProps {
   isDark: boolean;
   language: LangType;
   bibleTranslation: BibleTranslationId;
+  downloadedBibleTranslations: Set<BibleTranslationId>;
+  downloadingBibleTranslation: BibleTranslationId | null;
+  bibleDownloadProgress: LocalBibleDownloadProgress | null;
   isOnline: boolean;
   cloudQuotaExceeded: boolean;
   activeSession: ChatSession | null;
@@ -881,6 +963,7 @@ interface NativeAppContentProps {
   handleLanguageChange: (lang: LangType) => Promise<void>;
   changeTheme: (theme: ThemeId) => Promise<void>;
   changeBibleTranslation: (translation: BibleTranslationId) => Promise<void>;
+  downloadAndSetBibleTranslation: (translation: BibleTranslationId) => Promise<void>;
   setSidebarOpen: (open: boolean) => void;
   closeSidebar: () => void;
   setLangDropdownOpen: (open: boolean) => void;
@@ -910,6 +993,9 @@ function NativeAppContent({
   isDark,
   language,
   bibleTranslation,
+  downloadedBibleTranslations,
+  downloadingBibleTranslation,
+  bibleDownloadProgress,
   isOnline,
   cloudQuotaExceeded,
   activeSession,
@@ -938,6 +1024,7 @@ function NativeAppContent({
   handleLanguageChange,
   changeTheme,
   changeBibleTranslation,
+  downloadAndSetBibleTranslation,
   setSidebarOpen,
   closeSidebar,
   setLangDropdownOpen,
@@ -1466,6 +1553,10 @@ function NativeAppContent({
               <BibleTranslationDropdown
                 value={bibleTranslation}
                 onChange={changeBibleTranslation}
+                onDownload={downloadAndSetBibleTranslation}
+                downloadedTranslations={downloadedBibleTranslations}
+                downloadingTranslation={downloadingBibleTranslation}
+                downloadProgress={bibleDownloadProgress}
                 menuOpen={sidebarOpen}
                 onOpenChange={setBibleTranslationDropdownOpen}
                 colors={colors}

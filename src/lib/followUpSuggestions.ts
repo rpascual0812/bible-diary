@@ -1,4 +1,5 @@
 import type { LangType } from "../types";
+import { localizeVerseReference } from "./bibleVerse";
 import { pickRandomVerseReferences } from "./verseSuggestions";
 
 export interface FollowUpSuggestion {
@@ -90,7 +91,7 @@ function shuffle<T>(items: T[]): T[] {
   return copy;
 }
 
-function parseFollowUpJson(raw: string): FollowUpSuggestion[] {
+function parseFollowUpJson(raw: string, lang: LangType): FollowUpSuggestion[] {
   try {
     const parsed = JSON.parse(raw.trim()) as unknown;
     if (!Array.isArray(parsed)) return [];
@@ -117,7 +118,7 @@ function parseFollowUpJson(raw: string): FollowUpSuggestion[] {
             reference,
             text:
               reference === text
-                ? `${READ_VERSE_LABEL.en} ${reference}`
+                ? `${READ_VERSE_LABEL[lang] ?? READ_VERSE_LABEL.en} ${localizeVerseReference(reference, lang)}`
                 : text,
           };
         }
@@ -131,7 +132,7 @@ function parseFollowUpJson(raw: string): FollowUpSuggestion[] {
   }
 }
 
-export function stripAndParseFollowUps(raw: string): {
+export function stripAndParseFollowUps(raw: string, lang: LangType): {
   text: string;
   followUps: FollowUpSuggestion[];
 } {
@@ -142,7 +143,7 @@ export function stripAndParseFollowUps(raw: string): {
 
   return {
     text: raw.replace(FOLLOWUPS_FENCE_RE, "").trimEnd(),
-    followUps: parseFollowUpJson(match[1]),
+    followUps: parseFollowUpJson(match[1], lang),
   };
 }
 
@@ -168,7 +169,7 @@ export function buildOfflineFollowUps(
     {
       type: "verse",
       reference: verseRef,
-      text: `${readLabel} ${verseRef}`,
+      text: `${readLabel} ${localizeVerseReference(verseRef, lang)}`,
     },
   ];
 }
@@ -178,7 +179,7 @@ export function processModelResponse(
   userQuery: string,
   lang: LangType,
 ): { text: string; followUps: FollowUpSuggestion[] } {
-  const { text, followUps } = stripAndParseFollowUps(raw);
+  const { text, followUps } = stripAndParseFollowUps(raw, lang);
   if (followUps.length > 0) {
     return { text, followUps };
   }

@@ -10,10 +10,10 @@ import {
   type FollowUpSuggestion,
 } from "../lib/followUpSuggestions";
 
-const SYSTEM_INSTRUCTION_EN = `You are Daily Healing Word, a highly specialized conversational assistant focused exclusively on the Bible. 
-Your knowledge is strictly limited to the Old and New Testaments. 
-If a user asks a question unrelated to the Bible, theology, or biblical history, politely redirect them by saying you only answer questions related to the Holy Scriptures. 
-Provide scripture references (e.g., Genesis 1:1, John 3:16) whenever possible. 
+const SYSTEM_INSTRUCTION_EN = `You are Daily Healing Word, a highly specialized conversational assistant focused exclusively on the Bible.
+Your knowledge is strictly limited to the Old and New Testaments.
+If a user asks a question unrelated to the Bible, theology, or biblical history, politely redirect them by saying you only answer questions related to the Holy Scriptures.
+Provide scripture references (e.g., Genesis 1:1, John 3:16) whenever possible.
 Your tone is wise, compassionate, and objective.
 Use Markdown for formatting, including bold text for emphasis and blockquotes for scripture passages.
 Ensure you respond strictly and beautifully in fluent English.`;
@@ -42,20 +42,20 @@ An saimong tono dapat na magin madunong, may pagranga, may paggalang, asin mayon
 Gumamit nin Markdown para sa pag-format, kaiba an makapal na teksto (bold) para sa pagtao nin doon, asin blockquote (panipi) para sa eksaktong sipi kan mga bersikulo o talata.
 Siguraduhon na magsimbag ka nin may bilog na husay asin direkta sa pinulongang Bicolano.`;
 
-const SYSTEM_INSTRUCTION_ILO = `Sika ni Daily Healing Word, maysa highly specialized conversational assistant focusing laeng wenno pamalubos iti Biblia. 
-Ti ammom ket nairut a patinggaan laeng iti Daan ken Baro a Tulag. 
-No adda agsaludsod iti banag a saan a nairut a naituding iti Biblia, teolohia, wenno pakasaritaan ti Biblia, nadayaw nga ibagayo nga isu laeng dagiti saludsod maipanggep iti Banal a Kasuratan ti sungbatanmo. 
-Mangitedka iti scripture references wenno bersikulo manipud iti Biblia (kas pagarigan, Genesis 1:1, Juan 3:16) no mabalin tapno adda pangsarigan. 
-Ti tonom ket masapul a masirib, naasi, nadayaw, ken neutral iti panursuro. 
-Agusarka iti Markdown iti panang-format, pakairamanan ti bold text para iti pangpatneg ken blockquotes para iti sipi ti bersikulo. 
+const SYSTEM_INSTRUCTION_ILO = `Sika ni Daily Healing Word, maysa highly specialized conversational assistant focusing laeng wenno pamalubos iti Biblia.
+Ti ammom ket nairut a patinggaan laeng iti Daan ken Baro a Tulag.
+No adda agsaludsod iti banag a saan a nairut a naituding iti Biblia, teolohia, wenno pakasaritaan ti Biblia, nadayaw nga ibagayo nga isu laeng dagiti saludsod maipanggep iti Banal a Kasuratan ti sungbatanmo.
+Mangitedka iti scripture references wenno bersikulo manipud iti Biblia (kas pagarigan, Genesis 1:1, Juan 3:16) no mabalin tapno adda pangsarigan.
+Ti tonom ket masapul a masirib, naasi, nadayaw, ken neutral iti panursuro.
+Agusarka iti Markdown iti panang-format, pakairamanan ti bold text para iti pangpatneg ken blockquotes para iti sipi ti bersikulo.
 Tiyakem a sumungbatka a silalaing ken silalawag strictly ken napintas iti pagsasao nga Ilocano wenno Ilokano.`;
 
-const SYSTEM_INSTRUCTION_HIL = `Ikaw si Daily Healing Word, isa ka highly specialized conversational assistant nga nagasentro lamang gid sa Balaan nga Kasulatan ukon Biblia. 
-Ang imo ihibalo limitado gid kapin pa sa Daan kag Bag-o nga Katipan. 
-Kon ang isa ka taga-gamit mamangkot sang butang nga wala sing kaangtanan sa Biblia, teolohiya, ukon kasaysayan sang Biblia, matinahuron nga silingon sila nga nagasabat ka lamang sang mga pamangkot nga may kaangtanan sa Balaan nga Kasulatan. 
-Maghatag sang scripture references (subong sang Genesis 1:1, Juan 3:16) kon mahimo sa tanan nga oras. 
-Ang imo tono yara sa kaalam, mapinalanggaon, matinahuron, kag neutral sa pagtulun-an ukon doktrina. 
-Maggamit sing Markdown sa pag-format, lakip ang bold text para sa paghatag gibug-aton kag blockquotes para sa mga teksto gikan sa Biblia. 
+const SYSTEM_INSTRUCTION_HIL = `Ikaw si Daily Healing Word, isa ka highly specialized conversational assistant nga nagasentro lamang gid sa Balaan nga Kasulatan ukon Biblia.
+Ang imo ihibalo limitado gid kapin pa sa Daan kag Bag-o nga Katipan.
+Kon ang isa ka taga-gamit mamangkot sang butang nga wala sing kaangtanan sa Biblia, teolohiya, ukon kasaysayan sang Biblia, matinahuron nga silingon sila nga nagasabat ka lamang sang mga pamangkot nga may kaangtanan sa Balaan nga Kasulatan.
+Maghatag sang scripture references (subong sang Genesis 1:1, Juan 3:16) kon mahimo sa tanan nga oras.
+Ang imo tono yara sa kaalam, mapinalanggaon, matinahuron, kag neutral sa pagtulun-an ukon doktrina.
+Maggamit sing Markdown sa pag-format, lakip ang bold text para sa paghatag gibug-aton kag blockquotes para sa mga teksto gikan sa Biblia.
 Siguraduha nga magasabat ka sing diretso, matalinhaga, kag may kabatid guid sa polong nga Hiligaynon ukon Ilonggo.`;
 
 const SYSTEM_INSTRUCTION_ES = `Eres Daily Healing Word, un asistente conversacional altamente especializado centrado exclusivamente en la Biblia.
@@ -154,7 +154,11 @@ export class GeminiService {
   async sendMessage(message: string): Promise<string> {
     try {
       const response = await this.chat.sendMessage({ message });
-      return response.text || "I'm sorry, I couldn't generate a response.";
+      const text = response?.text?.trim();
+      if (!text) {
+        throw new Error(this.getFallbackErrorMessage());
+      }
+      return text;
     } catch (error) {
       console.error("Gemini API Error:", error);
       if (isGeminiQuotaOrRateLimitError(error)) {
@@ -163,52 +167,42 @@ export class GeminiService {
           error,
         );
       }
-      if (this.currentLang === "fil") {
-        throw new Error(
-          "Hindi maproseso ang tugon mula sa banal na karunungan. Pakisuri ang iyong koneksyon sa internet.",
-        );
-      } else if (this.currentLang === "ceb") {
-        throw new Error(
-          "Dili maproseso ang tubag gikan sa balaang kaalam. Palihug susiha ang inyong koneksyon sa internet.",
-        );
-      } else if (this.currentLang === "bik") {
-        throw new Error(
-          "Dai maproseso an simbag gikan sa langitnon na karunungan. Pakisuri an saimong koneksyon sa internet.",
-        );
-      } else if (this.currentLang === "ilo") {
-        throw new Error(
-          "Saan a maproseso ti sungbat manipud iti langitnon a sirib. Pakipasingkedan ti koneksion ti internet-yo.",
-        );
-      } else if (this.currentLang === "hil") {
-        throw new Error(
-          "Indi maproseso ang sabat gikan sa langitnon nga kaalam. Palihug tsekyar ang imo koneksyon sang internet.",
-        );
-      } else if (this.currentLang === "es") {
-        throw new Error(
-          "No se pudo procesar la respuesta. Comprueba tu conexión a internet.",
-        );
-      } else if (this.currentLang === "pt") {
-        throw new Error(
-          "Não foi possível processar a resposta. Verifique sua conexão com a internet.",
-        );
-      } else if (this.currentLang === "fr") {
-        throw new Error(
-          "Impossible de traiter la réponse. Veuillez vérifier votre connexion internet.",
-        );
-      } else if (this.currentLang === "la") {
-        throw new Error(
-          "Responsum ex sapientia caelesti non potuit processari. Quaeso conexionem interretialem inspice.",
-        );
-      } else if (this.currentLang === "el") {
-        throw new Error(
-          "Δεν ήταν δυνατή η επεξεργασία της απάντησης. Ελέγξτε τη σύνδεσή σας στο διαδίκτυο.",
-        );
-      } else {
-        throw new Error(
-          "Failed to connect to the divine wisdom. Please check your connection.",
-        );
-      }
+      throw new Error(this.getFallbackErrorMessage());
     }
+  }
+
+  private getFallbackErrorMessage(): string {
+    if (this.currentLang === "fil") {
+      return "Hindi maproseso ang tugon mula sa banal na karunungan. Pakisuri ang iyong koneksyon sa internet.";
+    }
+    if (this.currentLang === "ceb") {
+      return "Dili maproseso ang tubag gikan sa balaang kaalam. Palihug susiha ang inyong koneksyon sa internet.";
+    }
+    if (this.currentLang === "bik") {
+      return "Dai maproseso an simbag gikan sa langitnon na karunungan. Pakisuri an saimong koneksyon sa internet.";
+    }
+    if (this.currentLang === "ilo") {
+      return "Saan a maproseso ti sungbat manipud iti langitnon a sirib. Pakipasingkedan ti koneksion ti internet-yo.";
+    }
+    if (this.currentLang === "hil") {
+      return "Indi maproseso ang sabat gikan sa langitnon nga kaalam. Palihug tsekyar ang imo koneksyon sang internet.";
+    }
+    if (this.currentLang === "es") {
+      return "No se pudo procesar la respuesta. Comprueba tu conexión a internet.";
+    }
+    if (this.currentLang === "pt") {
+      return "Não foi possível processar a resposta. Verifique sua conexão com a internet.";
+    }
+    if (this.currentLang === "fr") {
+      return "Impossible de traiter la réponse. Veuillez vérifier votre connexion internet.";
+    }
+    if (this.currentLang === "la") {
+      return "Responsum ex sapientia caelesti non potuit processari. Quaeso conexionem interretialem inspice.";
+    }
+    if (this.currentLang === "el") {
+      return "Δεν ήταν δυνατή η επεξεργασία της απάντησης. Ελέγξτε τη σύνδεσή σας στο διαδίκτυο.";
+    }
+    return "Failed to connect to the divine wisdom. Please check your connection.";
   }
 
   getHistory(): Message[] {

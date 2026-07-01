@@ -10,6 +10,7 @@ import {
   fetchChapterVerses,
   fetchVerseText,
   formatVerseRef,
+  localizeVerseReference,
   getNextChapterRef,
   getPrevChapterRef,
   type ChapterVerse,
@@ -81,7 +82,8 @@ export function BibleVerseReader({
   if (!verseInfo) return null;
 
   const currentVerseRef = formatVerseRef(verseInfo);
-  const labels = getBibleReaderLabels(language, currentVerseRef);
+  const displayVerseRef = localizeVerseReference(currentVerseRef, language);
+  const labels = getBibleReaderLabels(language, displayVerseRef);
   const prevChapter = getPrevChapterRef(verseInfo);
   const nextChapter = getNextChapterRef(verseInfo);
 
@@ -151,7 +153,7 @@ export function BibleVerseReader({
           )}
         >
           <BookOpen className="w-3.5 h-3.5" />
-          {labels.title}: {currentVerseRef}
+          {labels.title}: {displayVerseRef}
         </span>
 
         <div className="flex items-center gap-1.5">

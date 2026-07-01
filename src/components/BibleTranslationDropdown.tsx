@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { BookMarked, ChevronDown } from "lucide-react";
+import { BookMarked, Check, ChevronDown, Download, Loader2 } from "lucide-react";
 import { cn } from "../lib/utils";
 import type { LangType } from "../types";
 import type { ThemeId } from "../theme";
@@ -10,10 +10,15 @@ import {
   getBibleTranslationOption,
   type BibleTranslationId,
 } from "../lib/bibleTranslations";
+import type { LocalBibleDownloadProgress } from "../lib/localBible";
 
 interface BibleTranslationDropdownProps {
   value: BibleTranslationId;
   onChange: (translation: BibleTranslationId) => void;
+  onDownload?: (translation: BibleTranslationId) => void;
+  downloadedTranslations?: Set<BibleTranslationId>;
+  downloadingTranslation?: BibleTranslationId | null;
+  downloadProgress?: LocalBibleDownloadProgress | null;
   label?: string;
   align?: "up" | "down";
   className?: string;
@@ -23,6 +28,10 @@ interface BibleTranslationDropdownProps {
 export function BibleTranslationDropdown({
   value,
   onChange,
+  onDownload,
+  downloadedTranslations = new Set(),
+  downloadingTranslation = null,
+  downloadProgress = null,
   label,
   align = "down",
   className,
@@ -112,15 +121,10 @@ export function BibleTranslationDropdown({
           >
             <div className="space-y-0.5">
               {BIBLE_TRANSLATION_OPTIONS.map((item) => (
-                <button
+                <div
                   key={item.id}
-                  type="button"
-                  onClick={() => {
-                    onChange(item.id);
-                    setIsOpen(false);
-                  }}
                   className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all text-left cursor-pointer border",
+                    "relative w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all text-left border",
                     item.id === value
                       ? isDark
                         ? "bg-gold-500/15 text-gold-400 border-gold-500/10"
@@ -130,7 +134,14 @@ export function BibleTranslationDropdown({
                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 border-transparent",
                   )}
                 >
-                  <div className="flex flex-col min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange(item.id);
+                      setIsOpen(false);
+                    }}
+                    className="flex flex-col min-w-0 flex-1 text-left cursor-pointer"
+                  >
                     <span className="font-semibold truncate">
                       {item.abbreviation} · {item.label}
                     </span>
@@ -142,16 +153,72 @@ export function BibleTranslationDropdown({
                     >
                       {item.language}
                     </span>
+                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {item.id === value && (
+                      <span
+                        className={cn(
+                          "w-1.5 h-1.5 rounded-full bg-gold-400 shrink-0",
+                          isDark ? "shadow-[0_0_8px_rgba(212,175,55,0.8)]" : "",
+                        )}
+                      />
+                    )}
+                    {onDownload && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (downloadingTranslation) return;
+                          onDownload(item.id);
+                        }}
+                        disabled={Boolean(downloadingTranslation)}
+                        title={
+                          downloadedTranslations.has(item.id)
+                            ? "Downloaded for offline reading"
+                            : "Download and set as default"
+                        }
+                        className={cn(
+                          "w-7 h-7 rounded-full flex items-center justify-center border transition-colors",
+                          downloadedTranslations.has(item.id)
+                            ? isDark
+                              ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                              : "border-emerald-500/30 bg-emerald-50 text-emerald-700"
+                            : isDark
+                              ? "border-white/10 bg-white/5 text-slate-300 hover:text-gold-400"
+                              : "border-slate-200 bg-white text-slate-500 hover:text-gold-600",
+                          downloadingTranslation && "opacity-60 cursor-wait",
+                        )}
+                      >
+                        {downloadingTranslation === item.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : downloadedTranslations.has(item.id) ? (
+                          <Check className="w-3.5 h-3.5" />
+                        ) : (
+                          <Download className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    )}
                   </div>
-                  {item.id === value && (
+                  {downloadingTranslation === item.id && downloadProgress && (
                     <span
                       className={cn(
-                        "w-1.5 h-1.5 rounded-full bg-gold-400 shrink-0 ml-2",
-                        isDark ? "shadow-[0_0_8px_rgba(212,175,55,0.8)]" : "",
+                        "absolute left-3 right-3 bottom-1 h-0.5 rounded-full overflow-hidden",
+                        isDark ? "bg-white/10" : "bg-slate-200",
                       )}
-                    />
+                    >
+                      <span
+                        className="block h-full bg-gold-500"
+                        style={{
+                          width: `${Math.round(
+                            (downloadProgress.completed /
+                              Math.max(downloadProgress.total, 1)) *
+                              100,
+                          )}%`,
+                        }}
+                      />
+                    </span>
                   )}
-                </button>
+                </div>
               ))}
             </div>
           </motion.div>
