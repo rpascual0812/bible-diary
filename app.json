@@ -2,18 +2,18 @@
   "expo": {
     "name": "Daily Healing Word",
     "slug": "bible-diary",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "dailyhealingword",
     "ios": {
       "bundleIdentifier": "com.rpascual.studio.dailyhealingword",
-      "buildNumber": "1"
+      "buildNumber": "101"
     },
     "android": {
       "package": "com.rpascual.studio.dailyhealingword",
-      "versionCode": 5,
+      "versionCode": 101,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
